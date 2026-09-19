@@ -1,0 +1,121 @@
+<div class="agri-portal">
+  <!-- Hero Section with Animated Canvas Simulation -->
+  <section class="simulation-hero">
+    <div class="canvas-wrapper">
+      <canvas #droneCanvas (click)="onCanvasClick($event)"></canvas>
+
+      <!-- Flight Telemetry HUD Overlay -->
+      <div class="flight-hud">
+        <div class="hud-item">
+          <span class="label">SPEED</span>
+          <span class="val">{{ groundSpeed }} km/h</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">FLOW RATE</span>
+          <span class="val">{{ flowRate }} L/min</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">TANK</span>
+          <span class="val" [class.low]="tankPercent < 20">{{ tankPercent }}%</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">BATTERY</span>
+          <span class="val">{{ batteryPercent }}%</span>
+        </div>
+      </div>
+
+      <!-- Simulation Flight Controls -->
+      <div class="canvas-controls">
+        <button class="btn-spray" [class.active]="isSpraying" (click)="toggleSpray()">
+          {{ isSpraying ? '⏹ Pause Sprayer' : '▶ Activate Sprayer' }}
+        </button>
+
+        <div class="fluid-selector">
+          <button [class.active]="activeFluid === 'nano_urea'" (click)="changeFluid('nano_urea')">
+            Nano Urea
+          </button>
+          <button [class.active]="activeFluid === 'bio_npk'" (click)="changeFluid('bio_npk')">
+            Organic NPK
+          </button>
+          <button [class.active]="activeFluid === 'micro_nutrients'" (click)="changeFluid('micro_nutrients')">
+            Micronutrients
+          </button>
+        </div>
+        <span class="click-hint">Click anywhere on the field to fly drone</span>
+      </div>
+    </div>
+
+    <div class="hero-content">
+      <div class="badge">AeroKrishi Autonomous Precision Farming</div>
+      <h1>Next-Gen Drone Crop Spraying & Management</h1>
+      <p>
+        Deliver microscopic fertilizer and micronutrient mist with micron-level accuracy.
+        Reduce chemical wastage by 40%, save 90% water, and complete 30 acres in a single day.
+      </p>
+      <div class="hero-stats">
+        <div><strong>10x</strong> Faster than manual spray</div>
+        <div><strong>₹{{ currentRate.price }}</strong> Flat rate per tank</div>
+        <div><strong>100%</strong> Uniform canopy penetration</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Precision Calculator & Booking Grid -->
+  <section class="booking-section">
+    <div class="card calc-card">
+      <h2>Fertilizer & Cost Calculator</h2>
+      <p class="subtitle">Based on active price: ₹{{ currentRate.price }} per drone payload tank</p>
+
+      <div class="form-group">
+        <label>Target Crop</label>
+        <select [(ngModel)]="estCrop" (change)="calculateEstimate()">
+          <option value="Paddy">Paddy / Rice</option>
+          <option value="Cotton">Cotton</option>
+          <option value="Sugarcane">Sugarcane</option>
+          <option value="Wheat">Wheat</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Land Size (Acres): <strong>{{ estAcres }} Acres</strong></label>
+        <input type="range" min="1" max="50" [(ngModel)]="estAcres" (input)="calculateEstimate()">
+      </div>
+
+      <div class="summary-box">
+        <div class="res-row">
+          <span>Required Tank Loads:</span>
+          <strong>{{ estTanks }} Tanks (10L each)</strong>
+        </div>
+        <div class="res-row total">
+          <span>Estimated Spray Cost:</span>
+          <strong class="price">₹{{ estCost }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Dispatch Form -->
+    <div class="card dispatch-card">
+      <h2>Schedule Drone Spraying</h2>
+      <p class="subtitle">Dispatches a drone pilot directly to your farm plot</p>
+
+      <div class="input-grid">
+        <input type="text" placeholder="Farmer / Owner Name" [(ngModel)]="booking.farmerName">
+        <input type="text" placeholder="Mobile Phone (+91)" [(ngModel)]="booking.phone">
+        <input type="text" placeholder="Village / Plot Location" [(ngModel)]="booking.village">
+        <select [(ngModel)]="booking.crop">
+          <option value="Paddy">Paddy</option>
+          <option value="Cotton">Cotton</option>
+          <option value="Sugarcane">Sugarcane</option>
+          <option value="Wheat">Wheat</option>
+        </select>
+      </div>
+
+      <div class="action-footer">
+        <button class="btn-book" (click)="submitQuickBooking()">
+          Confirm & Log Mission
+        </button>
+        <span *ngIf="bookingSuccess" class="success-msg">Mission Logged Successfully into Spring Boot Database!</span>
+      </div>
+    </div>
+  </section>
+</div>

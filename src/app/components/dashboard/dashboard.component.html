@@ -1,0 +1,97 @@
+<div class="container">
+  <header>
+    <h1>Agri-Drone Spraying & Operations Portal</h1>
+    <div class="rate-card" *ngIf="rate">
+      <span>Current Rate per Tank: <strong>₹{{ rate.price }}</strong></span>
+      <input type="number" [(ngModel)]="newRatePrice" style="width: 100px; margin: 0 8px;">
+      <button (click)="updateActiveRate()">Update Rate</button>
+    </div>
+  </header>
+
+  <!-- Section 1: Drone Fleet -->
+  <section class="section">
+    <h2>Drone Fleet</h2>
+    <div class="form-row">
+      <input placeholder="Drone ID (e.g. DRN-01)" [(ngModel)]="newDrone.droneId">
+      <input placeholder="Model Name" [(ngModel)]="newDrone.droneName">
+      <input placeholder="Owner Name" [(ngModel)]="newDrone.droneOwnerName">
+      <input placeholder="Phone" [(ngModel)]="newDrone.droneOwnerPhone">
+      <button (click)="saveDrone()">Add Drone</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Drone ID</th>
+          <th>Model</th>
+          <th>Owner</th>
+          <th>Phone</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of drones">
+          <td>{{ d.droneId }}</td>
+          <td>{{ d.droneName }}</td>
+          <td>{{ d.droneOwnerName }}</td>
+          <td>{{ d.droneOwnerPhone }}</td>
+          <td><button class="btn-danger" (click)="removeDrone(d.droneId)">Delete</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Section 2: Daily Spraying Logs -->
+  <section class="section">
+    <h2>Daily Spraying Logs</h2>
+    <div class="form-grid">
+      <input type="date" [(ngModel)]="newLog.date">
+      <input type="time" [(ngModel)]="newLog.time">
+      <input placeholder="Crop Name" [(ngModel)]="newLog.cropName">
+      <input placeholder="Farmer Name" [(ngModel)]="newLog.cropOwnerName">
+      <input placeholder="Phone" [(ngModel)]="newLog.cropOwnerPhone">
+      <input type="number" placeholder="Acres" [(ngModel)]="newLog.cropSize">
+      <input placeholder="Village" [(ngModel)]="newLog.cropVillage">
+      <input type="number" placeholder="Tanks" [(ngModel)]="newLog.tankUsage" (input)="calculateAmount()">
+      <div class="computed-amount">Est. Total: ₹{{ newLog.amount }}</div>
+      <select [(ngModel)]="newLog.paymentStatus">
+        <option value="PENDING">PENDING</option>
+        <option value="PAID">PAID</option>
+      </select>
+      <button (click)="saveLog()">Record Spraying</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Farmer</th>
+          <th>Village</th>
+          <th>Crop</th>
+          <th>Tanks</th>
+          <th>Total (₹)</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let l of logs">
+          <td>{{ l.serialNo }}</td>
+          <td>{{ l.date }} {{ l.time }}</td>
+          <td>{{ l.cropOwnerName }} ({{ l.cropOwnerPhone }})</td>
+          <td>{{ l.cropVillage }}</td>
+          <td>{{ l.cropName }} ({{ l.cropSize }} ac)</td>
+          <td>{{ l.tankUsage }}</td>
+          <td>₹{{ l.amount }}</td>
+          <td>
+            <span [class.badge-paid]="l.paymentStatus === 'PAID'" [class.badge-pending]="l.paymentStatus === 'PENDING'">
+              {{ l.paymentStatus }}
+            </span>
+          </td>
+          <td><button class="btn-danger" (click)="removeLog(l.serialNo)">Delete</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>
