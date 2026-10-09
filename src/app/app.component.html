@@ -1,4 +1,4 @@
-<nav style="background: #0f172a; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;">
+<!-- <nav style="background: #0f172a; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;">
   <div style="color: #34d399; font-weight: 800; font-size: 1.2rem;">
     🌿 AeroKrishi Drone Systems
   </div>
@@ -8,4 +8,167 @@
   </div>
 </nav>
 
-<router-outlet></router-outlet>
+<router-outlet></router-outlet> -->
+
+
+<div class="app-layout">
+  <!-- Top Navigation Bar -->
+  <header class="navbar-header">
+    <nav class="navbar-container">
+      <!-- Brand Logo -->
+      <a routerLink="/" class="brand-logo">
+        <div class="logo-icon-wrapper">
+          <span class="drone-glyph">🛸</span>
+          <span class="leaf-glyph">🌱</span>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">AeroKrishi</span>
+          <span class="brand-subtitle">Smart Agri Drone Fleet</span>
+        </div>
+      </a>
+
+      <!-- Navigation Links -->
+      <div class="nav-menu">
+        <!-- <a 
+          routerLink="/" 
+          routerLinkActive="active" 
+          [routerLinkActiveOptions]="{ exact: true }" 
+          class="nav-link">
+          <span class="link-icon">🎮</span>
+          <span>Live Spray Simulator</span>
+        </a> -->
+        
+        <!-- Booking Links -->
+        <a 
+          routerLink="/booking" 
+          routerLinkActive="active" 
+          class="nav-link">
+          <span class="link-icon">📊</span>
+          <span>Booking & Scheduling</span>
+        </a>
+
+         <a 
+          routerLink="/operations" 
+          routerLinkActive="active" 
+          class="nav-link">
+          <span class="link-icon">📊</span>
+          <span>Operations</span>
+        </a>
+
+
+        <!-- Operations Links -->
+        <a 
+          routerLink="/logs" 
+          routerLinkActive="active" 
+          class="nav-link">
+          <span class="link-icon">📋</span>
+          <span>Spraying Logs</span>
+        </a>
+
+        
+        <!-- Maintenance Links -->
+        <a 
+          routerLink="/maintenance" 
+          routerLinkActive="active" 
+          class="nav-link">
+          <span class="link-icon">📊</span>
+          <span>Maintenance & Diagnostics</span>
+        </a>
+       
+      </div>
+
+      <!-- Quick Action & Live Telemetry Pill -->
+      <!-- <div class="nav-actions">
+        <div class="fleet-status-pill">
+          <span class="pulse-dot"></span>
+          <span class="pill-text">Fleet Active</span>
+        </div>
+        <a routerLink="/dashboard" class="btn-primary-nav">
+          + Book Spray
+        </a>
+      </div> -->
+
+      <div class="nav-actions">
+        <div class="fleet-status-pill">
+          <span class="pulse-dot"></span>
+        </div>
+        <a routerLink="/dashboard" class="btn-primary-nav">
+          Login
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main View Outlet -->
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+
+  <!-- Agriculture-Themed Footer -->
+  <footer class="app-footer">
+    <div class="footer-top-accent"></div>
+
+    <div class="footer-container">
+      <div class="footer-grid">
+        <!-- Col 1: Brand & Mission -->
+        <div class="footer-col brand-col">
+          <div class="footer-brand">
+            <span class="logo-emoji">🌾</span>
+            <h3>AeroKrishi Systems</h3>
+          </div>
+          <p class="footer-desc">
+            Precision autonomous drone spraying infrastructure empowering modern farmers. 
+            Delivering micron-level fertilizer distribution, 90% water conservation, and high-speed crop protection.
+          </p>
+          <div class="fleet-telemetry-badge">
+            <span class="dot-online"></span>
+            <span>H2 Database Sync: <strong>Connected (8080)</strong></span>
+          </div>
+        </div>
+
+        <!-- Col 2: Quick Links -->
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <ul class="footer-links">
+            <li><a routerLink="/">Live Flight Simulation</a></li>
+            <li><a routerLink="/dashboard">Spraying Logs & Fleet</a></li>
+            <li><a routerLink="/dashboard">Update Dynamic Rate</a></li>
+            <li><a routerLink="/dashboard">Registered Drones</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 3: Technical Specifications -->
+        <div class="footer-col">
+          <h4>Drone Capabilities</h4>
+          <ul class="footer-spec-list">
+            <li><span>Payload Tank:</span> <strong>10L - 16L Hexacopter</strong></li>
+            <li><span>Spray Width:</span> <strong>3.5m - 5.0m Swath</strong></li>
+            <li><span>Nozzle Tech:</span> <strong>Dual Rotary Atomizers</strong></li>
+            <li><span>Field Coverage:</span> <strong>Up to 30 Acres/Day</strong></li>
+          </ul>
+        </div>
+
+        <!-- Col 4: Support & Operations -->
+        <div class="footer-col">
+          <h4>Pilot Dispatch</h4>
+          <p class="contact-line">📍 Regional Agro Hub, India</p>
+          <p class="contact-line">📞 Pilot Hotline: +91 1800-AERO-AGRI</p>
+          <p class="contact-line">✉️ support&#64;aerokrishi-drones.internal</p>
+          <div class="compliance-badge">
+            DGCA Compliant Precision Spray
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Bottom Bar -->
+      <div class="footer-bottom">
+        <p>© {{ currentYear }} AeroKrishi Drone Management Systems. All rights reserved.</p>
+        <div class="footer-legal-links">
+          <span>Spring Boot 3 + H2 Database</span>
+          <span class="sep">•</span>
+          <span>Angular Standalone Architecture</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>

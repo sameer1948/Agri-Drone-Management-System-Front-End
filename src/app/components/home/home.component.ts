@@ -434,26 +434,26 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   submitQuickBooking(): void {
     if (!this.booking.farmerName || !this.booking.phone) return;
 
-    const newLog: LogEntry = {
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toTimeString().split(' ')[0],
-      cropName: this.booking.crop,
-      cropOwnerName: this.booking.farmerName,
-      cropOwnerPhone: this.booking.phone,
-      cropSize: this.booking.acres,
-      cropVillage: this.booking.village || 'Local Sector',
-      tankUsage: this.estTanks,
-      amount: this.estCost,
-      paymentStatus: 'PENDING'
-    };
+    // const newLog: LogEntry = {
+    //   createDate: new Date().toISOString().split('T')[0],
+    //   createTime: new Date().toTimeString().split(' ')[0],
+    //   cropName: this.booking.crop,
+    //   cropOwnerName: this.booking.farmerName,
+    //   cropOwnerPhone: this.booking.phone,
+    //   cropSize: this.booking.acres,
+    //   cropVillage: this.booking.village || 'Local Sector',
+    //   tankUsage: this.estTanks,
+    //   amount: this.estCost,
+    //   paymentStatus: 'PENDING'
+    // };
 
-    this.api.createLog(newLog).subscribe({
-      next: () => {
-        this.bookingSuccess = true;
-        this.booking = { farmerName: '', phone: '', village: '', crop: 'Paddy', acres: 4 };
-        setTimeout(() => (this.bookingSuccess = false), 4000);
-      },
-      error: (err) => console.error('Error logging drone mission', err)
-    });
+    // this.api.createLog(newLog).subscribe({
+    //   next: () => {
+    //     this.bookingSuccess = true;
+    //     this.booking = { farmerName: '', phone: '', village: '', crop: 'Paddy', acres: 4 };
+    //     setTimeout(() => (this.bookingSuccess = false), 4000);
+    //   },
+    //   error: (err) => console.error('Error logging drone mission', err)
+    // });
   }
 }

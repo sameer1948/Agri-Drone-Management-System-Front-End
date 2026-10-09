@@ -27,8 +27,10 @@ export class DashboardComponent implements OnInit {
   };
 
   newLog: LogEntry = {
-    date: new Date().toISOString().split('T')[0],
-    time: '08:00:00',
+    bookingId: 0,
+    droneId: '',
+    createDate: new Date().toISOString().split('T')[0],
+    createTime: '08:00:00',
     cropName: '',
     cropOwnerName: '',
     cropOwnerPhone: '',
@@ -36,6 +38,7 @@ export class DashboardComponent implements OnInit {
     cropVillage: '',
     tankUsage: 1,
     amount: 0,
+    activityStatus: 'CONFIRMED',
     paymentStatus: 'PENDING'
   };
 
@@ -79,10 +82,10 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  removeLog(serialNo?: number): void {
-    if (!serialNo) return;
-    this.api.deleteLog(serialNo).subscribe(() => {
-      this.logs = this.logs.filter(l => l.serialNo !== serialNo);
+  removeLog(log_id?: number): void {
+    if (!log_id) return;
+    this.api.deleteLog(log_id).subscribe(() => {
+      this.logs = this.logs.filter(l => l.logId !== log_id);
     });
   }
 

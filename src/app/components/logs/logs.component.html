@@ -1,0 +1,347 @@
+<div class="logs-container">
+  <!-- Toast Notification -->
+  <div *ngIf="toast.show" class="toast" [ngClass]="'toast-' + toast.type">
+    <span>{{ toast.message }}</span>
+    <button (click)="toast.show = false">✕</button>
+  </div>
+
+  <!-- Header -->
+  <header class="logs-header">
+    <div class="title-wrap">
+      <h1>Spraying Flight Mission Logs</h1>
+      <p>Operational records of drone field sprayings, tank consumptions, and payment settlements</p>
+    </div>
+    <button class="btn-refresh" (click)="fetchLogs()" [disabled]="isLoading">
+      🔄 Refresh Logs
+    </button>
+  </header>
+
+  <!-- KPI Metrics Banner -->
+  <section class="kpi-banner">
+    <div class="kpi-card">
+      <span class="label">Total Missions Run</span>
+      <strong class="val">{{ totalLogs }}</strong>
+    </div>
+    <div class="kpi-card pending">
+      <span class="label">Pending Payments</span>
+      <strong class="val">₹{{ pendingAmount | number }}</strong>
+    </div>
+    <div class="kpi-card collected">
+      <span class="label">Collected Payments</span>
+      <strong class="val">₹{{ collectedAmount | number }}</strong>
+    </div>
+  </section>
+
+  <!-- Filter & Search Strip -->
+  <section class="filter-strip">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        placeholder="Filter by farmer, phone, crop, or village..." 
+        [(ngModel)]="searchTerm" 
+        (input)="applyFiltersAndSort()">
+    </div>
+
+    <div class="status-filters">
+      <label>Status:</label>
+      <div class="pill-group">
+        <button 
+          [class.active]="selectedStatusFilter === 'ALL'" 
+          (click)="selectedStatusFilter = 'ALL'; applyFiltersAndSort()">
+          All
+        </button>
+        <button 
+          [class.active]="selectedStatusFilter === 'PENDING'" 
+          (click)="selectedStatusFilter = 'PENDING'; applyFiltersAndSort()">
+          Pending
+        </button>
+        <button 
+          [class.active]="selectedStatusFilter === 'PAID'" 
+          (click)="selectedStatusFilter = 'PAID'; applyFiltersAndSort()">
+          Paid
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Table Card -->
+  <div class="table-wrapper">
+    <div *ngIf="isLoading" class="table-loading">
+      <div class="spinner"></div>
+      <p>Loading spraying logs...</p>
+    </div>
+
+    <div class="table-responsive" *ngIf="!isLoading">
+      <table class="logs-table">
+        <thead>
+          <tr>
+            <th (click)="setSort('logId')" class="sortable">
+              # Serial <span class="sort-indicator">{{ sortBy === 'logId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('createDate')" class="sortable">
+              Create Date & Time <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('cropOwnerName')" class="sortable">
+              Farmer / Phone <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('cropName')" class="sortable">
+              Crop & Village <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('cropSize')" class="sortable">
+              Area <span class="sort-indicator">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('tankUsage')" class="sortable">
+              Tanks <span class="sort-indicator">{{ sortBy === 'tankUsage' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('amount')" class="sortable">
+              Total <span class="sort-indicator">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+             <th (click)="setSort('completeDate')" class="sortable">
+              Complete Date & Time <span class="sort-indicator">{{ sortBy === 'completeDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('activityStatus')" class="sortable">
+              Activity Status <span class="sort-indicator">{{ sortBy === 'activityStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="setSort('paymentStatus')" class="sortable">
+              Payment Status <span class="sort-indicator">{{ sortBy === 'paymentStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="action-header">Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let log of pagedLogs" [class.row-pending]="log.paymentStatus === 'PENDING'">
+            <td class="bold-text"># {{ log.logId }}</td>
+            <td>
+              <div class="cell-stack">
+                <span class="cell-main">{{ log.createDate }}</span>
+                <span class="cell-sub">{{ log.createTime }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-stack">
+                <span class="cell-main">{{ log.cropOwnerName }}</span>
+                <a href="tel:{{ log.cropOwnerPhone }}" class="phone-link">📞 {{ log.cropOwnerPhone }}</a>
+              </div>
+            </td>
+            <td>
+              <div class="cell-stack">
+                <span class="crop-tag">{{ log.cropName }}</span>
+                <span class="cell-sub">📍 {{ log.cropVillage }}</span>
+              </div>
+            </td>
+            <td><strong>{{ log.cropSize | number:'1.1-2' }}</strong> ac</td>
+            <td><span class="tank-pill">🧪 {{ log.tankUsage }}</span></td>
+            <td class="amount-val">₹{{ log.amount }}</td>
+            <td>
+              <div class="cell-stack">
+                <span class="cell-main">{{ log.completeDate }}</span>
+                <span class="cell-sub">{{ log.completeTime }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="log.activityStatus.toLowerCase()">
+                {{ log.activityStatus }}
+              </span>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="log.paymentStatus.toLowerCase()">
+                {{ log.paymentStatus }}
+              </span>
+            </td>
+
+            <!-- Conditional Action Column -->
+            <td class="actions-cell">
+            <!-- <ng-container *ngIf="log.activityStatus === 'CONFIRMED' && log.paymentStatus === 'PENDING'"> -->
+              <div class="btn-group">
+                <!-- Completed Button -->
+                <button 
+                  *ngIf="log.activityStatus === 'CONFIRMED' && log.paymentStatus === 'PENDING'"
+                  type="button" 
+                  class="btn-action btn-confirm" 
+                  title="Confirm & verify Spraying details" 
+                  (click)="openConfirmDialog(log)">
+                  <span class="material-icons icon-glyph">check_circle</span>
+                  <span>Completed</span>
+                </button>
+
+                <!-- Send Reminder Button -->
+                <button 
+                  *ngIf="log.paymentStatus === 'PENDING'"
+                  type="button" 
+                  class="btn-action btn-remind" 
+                  title="Send WhatsApp payment reminder" 
+                  (click)="sendPaymentReminder(log)">
+                  <span class="material-icons icon-glyph">chat</span>
+                  <span>Send Reminder</span>
+                </button>
+
+                <!-- Payment Received Button -->
+                <button 
+                  *ngIf="log.paymentStatus === 'PENDING'"
+                  type="button" 
+                  class="btn-action btn-pay" 
+                  title="Open payment settlement dialog" 
+                  (click)="openPaymentDialog(log)">
+                  <span class="material-icons icon-glyph">payments</span>
+                  <span>Payment Received</span>
+                </button>
+              </div>
+            <!-- </ng-container> -->
+
+            <ng-container *ngIf="log.paymentStatus === 'PAID'">
+              <span class="settled-tag">
+                <span class="material-icons icon-glyph settled-glyph">verified</span>
+                <span>Settled</span>
+              </span>
+            </ng-container>
+            </td>
+
+          <tr *ngIf="pagedLogs.length === 0">
+            <td colspan="9" class="no-records">
+              No spraying logs found matching the filter criteria.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <footer class="pagination-bar">
+      <div class="page-summary">
+        Showing <strong>{{ (currentPage * pageSize) + 1 }}</strong> to 
+        <strong>{{ (currentPage * pageSize) + pagedLogs.length }}</strong> of 
+        <strong>{{ filteredLogs.length }}</strong> logs
+      </div>
+
+      <div class="page-tools">
+        <div class="rows-select">
+          <label>Rows:</label>
+          <select [ngModel]="pageSize" (ngModelChange)="onPageSizeChange($event)">
+            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+          </select>
+        </div>
+
+        <div class="nav-buttons">
+          <button [disabled]="currentPage === 0" (click)="goToPage(currentPage - 1)">‹ Prev</button>
+          <button 
+            *ngFor="let p of getPageNumbers()" 
+            [class.active]="p === currentPage" 
+            (click)="goToPage(p)">
+            {{ p + 1 }}
+          </button>
+          <button [disabled]="currentPage >= totalPages - 1" (click)="goToPage(currentPage + 1)">Next ›</button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ================= UNIFIED ACTION DIALOG MODAL ================= -->
+  <div class="modal-backdrop" *ngIf="isDialogOpen" (click)="closeDialog()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      
+      <!-- DIALOG HEADER -->
+      <div class="modal-header" [ngClass]="activeDialogMode === 'CONFIRM_MISSION' ? 'header-confirm' : 'header-pay'">
+        <div class="header-title-wrap">
+          <span class="header-icon">{{ activeDialogMode === 'CONFIRM_MISSION' ? '✅' : '💳' }}</span>
+          <div>
+            <h3>{{ activeDialogMode === 'CONFIRM_MISSION' ? 'Verify & Confirm Mission' : 'Record Received Payment' }}</h3>
+            <p>{{ activeDialogMode === 'CONFIRM_MISSION' ? 'Review all spraying specifications' : 'Settle invoice and mark status as PAID' }}</p>
+          </div>
+        </div>
+        <button class="btn-modal-close" (click)="closeDialog()">✕</button>
+      </div>
+
+      <!-- DIALOG BODY: DETAILED INFO SPECS -->
+      <div class="modal-body" *ngIf="selectedLog">
+        <div class="specs-grid">
+          <div class="spec-item">
+            <span class="spec-label">Log Serial:</span>
+            <strong class="spec-value">#{{ selectedLog.logId }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Flight Date & Time:</span>
+            <strong class="spec-value">{{ selectedLog.createDate }} at {{ selectedLog.createTime }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Farmer / Crop Owner:</span>
+            <strong class="spec-value">{{ selectedLog.cropOwnerName }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Contact Phone:</span>
+            <strong class="spec-value">{{ selectedLog.cropOwnerPhone }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Crop & Variety:</span>
+            <strong class="spec-value">{{ selectedLog.cropName }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Land Size:</span>
+            <strong class="spec-value">{{ selectedLog.cropSize }} Acres</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Farm Village:</span>
+            <strong class="spec-value">{{ selectedLog.cropVillage }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Tank Usage:</span>
+            <strong class="spec-value">{{ selectedLog.tankUsage }} Tanks</strong>
+          </div>
+        </div>
+
+        <!-- Total Amount Card -->
+        <div class="amount-banner">
+          <span class="lbl">Total Mission Amount</span>
+          <span class="val">₹{{ selectedLog.amount }}</span>
+        </div>
+
+        <!-- PAYMENT MODE DROPDOWN (Only for RECEIVE_PAYMENT) -->
+        <div class="payment-form-section" *ngIf="activeDialogMode === 'RECEIVE_PAYMENT'">
+          
+          <label for="payType"><strong>Select Payment Mode:</strong> <span class="req">*</span></label>
+          <select id="payType" [(ngModel)]="paymentMode" class="dropdown-input">
+            <option value="CASH">💵 Cash </option>
+            <option value="TRANSFER">📱 UPI / Online Bank Transfer</option>
+          </select>
+
+          <label for="refNote" style="margin-top: 10px;"><strong>Transaction Ref / Notes (Optional):</strong></label>
+          <input 
+            id="refNote" 
+            type="text" 
+            [(ngModel)]="paymentReferenceNote" 
+            placeholder="e.g. UPI Ref #89283921 / Handed over to pilot" 
+            class="text-input">
+        </div>
+
+        <div class="placeholder-notice" *ngIf="activeDialogMode === 'CONFIRM_MISSION'">
+          ℹ️ <em>Confirming will lock and verify this completed flight log in the central registry.</em>
+        </div>
+      </div>
+
+      <!-- DIALOG FOOTER ACTIONS -->
+      <div class="modal-footer">
+        <button type="button" class="btn-dialog-close" (click)="closeDialog()">Close</button>
+
+        <!-- Submit for Confirm Mission -->
+        <button 
+          *ngIf="activeDialogMode === 'CONFIRM_MISSION'" 
+          type="button" 
+          class="btn-dialog-confirm" 
+          (click)="executeConfirmAction()">
+          Spraying Completed
+        </button>
+
+        <!-- Submit for Receive Payment -->
+        <button 
+          *ngIf="activeDialogMode === 'RECEIVE_PAYMENT'" 
+          type="button" 
+          class="btn-dialog-pay" 
+          (click)="executePaymentReceived()">
+          Confirm & Record Payment
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

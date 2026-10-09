@@ -12,12 +12,16 @@
 //   title = 'Agri-Drone-Management-System-Front-End';
 // }
 import { Component } from '@angular/core';
-import { RouterOutlet, RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink],
-  templateUrl: './app.component.html'
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
 })
-export class AppComponent {}
+export class AppComponent {
+  currentYear = new Date().getFullYear();
+}

@@ -45,8 +45,8 @@
   <section class="section">
     <h2>Daily Spraying Logs</h2>
     <div class="form-grid">
-      <input type="date" [(ngModel)]="newLog.date">
-      <input type="time" [(ngModel)]="newLog.time">
+      <input type="date" [(ngModel)]="newLog.createDate">
+      <input type="time" [(ngModel)]="newLog.createTime">
       <input placeholder="Crop Name" [(ngModel)]="newLog.cropName">
       <input placeholder="Farmer Name" [(ngModel)]="newLog.cropOwnerName">
       <input placeholder="Phone" [(ngModel)]="newLog.cropOwnerPhone">
@@ -77,8 +77,8 @@
       </thead>
       <tbody>
         <tr *ngFor="let l of logs">
-          <td>{{ l.serialNo }}</td>
-          <td>{{ l.date }} {{ l.time }}</td>
+          <td>{{ l.logId }}</td>
+          <td>{{ l.createDate }} {{ l.createTime }}</td>
           <td>{{ l.cropOwnerName }} ({{ l.cropOwnerPhone }})</td>
           <td>{{ l.cropVillage }}</td>
           <td>{{ l.cropName }} ({{ l.cropSize }} ac)</td>
@@ -89,7 +89,7 @@
               {{ l.paymentStatus }}
             </span>
           </td>
-          <td><button class="btn-danger" (click)="removeLog(l.serialNo)">Delete</button></td>
+          <td><button class="btn-danger" (click)="removeLog(l.logId)">Delete</button></td>
         </tr>
       </tbody>
     </table>

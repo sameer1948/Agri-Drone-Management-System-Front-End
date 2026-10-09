@@ -1,0 +1,350 @@
+<div class="admin-panel-container">
+  <!-- Toast Message -->
+  <div *ngIf="toast.show" class="admin-toast" [ngClass]="'toast-' + toast.type">
+    <span>{{ toast.type === 'success' ? '✅' : '⚠️' }} {{ toast.message }}</span>
+    <button (click)="toast.show = false">✕</button>
+  </div>
+
+  <!-- Unauthorized State (If Logged Out) -->
+  <div *ngIf="!isAdminLoggedIn" class="unauthorized-card">
+    <div class="lock-icon">🔒</div>
+    <h2>Admin Access Restricted</h2>
+    <p>You must authenticate as a certified drone fleet administrator to access booking controls.</p>
+    <button class="btn-primary" (click)="isAdminLoggedIn = true">Simulate Admin Login</button>
+  </div>
+
+  <div *ngIf="isAdminLoggedIn">
+    <!-- Header with Admin Pill & Metrics -->
+    <header class="admin-header">
+      <div>
+        <div class="title-row">
+          <h1>Fleet Operations & Booking Manager</h1>
+          <span class="badge-role">Admin Mode</span>
+        </div>
+        <p class="subtitle">Review, approve pilot flight paths, edit crop acreage, or dispatch reminders</p>
+      </div>
+
+      <div class="header-tools">
+        <button class="btn-toggle-auth" (click)="isAdminLoggedIn = false">Logout Admin</button>
+        <a routerLink="/booking" class="btn-create-nav">+ New Booking</a>
+      </div>
+    </header>
+
+    <!-- Operational KPI Summary Cards -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Total Missions</span>
+        <strong class="kpi-val">{{ totalCount }}</strong>
+      </div>
+      <div class="kpi-card pending">
+        <span class="kpi-label">Pending Approval</span>
+        <strong class="kpi-val">{{ pendingCount }}</strong>
+      </div>
+      <div class="kpi-card confirmed">
+        <span class="kpi-label">Confirmed / Dispatched</span>
+        <strong class="kpi-val">{{ confirmedCount }}</strong>
+      </div>
+      <div class="kpi-card revenue">
+        <span class="kpi-label">Page Est. Value</span>
+        <strong class="kpi-val">₹{{ totalRevenue | number }}</strong>
+      </div>
+    </section>
+
+    <!-- Filter & Search Toolbar -->
+    <section class="filter-bar">
+      <!-- Search Input -->
+      <div class="search-wrap">
+        <span class="search-glyph">🔍</span>
+        <input 
+          type="text" 
+          placeholder="Search by farmer name, phone, or village..." 
+          [(ngModel)]="searchTerm" 
+          (keyup.enter)="loadData(0)">
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-dropdown">
+        <label>Status:</label>
+        <select [(ngModel)]="selectedStatusFilter" (change)="loadData(0)">
+          <option value="ALL">All Statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+
+      <!-- Crop Filter -->
+      <div class="filter-dropdown">
+        <label>Crop:</label>
+        <select [(ngModel)]="selectedCropFilter" (change)="loadData(0)">
+          <option value="ALL">All Crops</option>
+          <option *ngFor="let c of cropsList" [value]="c.name">{{ c.name }}</option>
+        </select>
+      </div>
+
+      <button class="btn-apply-filter" (click)="loadData(0)">Apply</button>
+    </section>
+
+    <!-- Bookings Data Table -->
+    <div class="table-container">
+      <div *ngIf="isLoading" class="loading-overlay">
+        <div class="spin"></div>
+        <p>Syncing operations data...</p>
+      </div>
+
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th (click)="toggleSort('bookingId')" class="sortable">
+              ID <span class="sort-icon">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="toggleSort('bookingDate')" class="sortable">
+              Date & Schedule <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="toggleSort('cropOwnerName')" class="sortable">
+              Farmer / Contact <span class="sort-icon">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th>Crop & Village</th>
+            <th (click)="toggleSort('cropSize')" class="sortable">
+              Size (Ac) <span class="sort-icon">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="toggleSort('amount')" class="sortable">
+              Total Amount <span class="sort-icon">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th (click)="toggleSort('bookingStatus')" class="sortable">
+              Status <span class="sort-icon">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="text-center">Admin Controls</th>
+            <th class="text-center">Send Alert</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let b of bookings" [class.cancelled-row]="b.bookingStatus === 'CANCELLED'">
+            <td class="bold">#{{ b.bookingId }}</td>
+            <td>
+              <div class="date-cell">
+                <span class="date">{{ b.bookingDate }}</span>
+                <span class="day">{{ b.bookingDay }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="farmer-cell">
+                <strong>{{ b.cropOwnerName }}</strong>
+                <a href="tel:{{ b.cropOwnerPhone }}" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
+              </div>
+            </td>
+            <td>
+              <span class="crop-badge">{{ b.cropName }}</span>
+              <small class="village-text">📍 {{ b.cropVillage }}</small>
+            </td>
+            <td><strong>{{ b.cropSize | number:'1.2-2' }}</strong> ac</td>
+            <td class="amount-text">₹{{ b.amount }}</td>
+            <td>
+              <span class="status-pill" [ngClass]="b.bookingStatus!.toLowerCase()">
+                {{ b.bookingStatus }}
+              </span>
+            </td>
+
+            <!-- Admin Actions -->
+            <td class="text-center">
+              <div class="action-btn-group">
+                <!-- Edit -->
+                <button 
+                *ngIf="b.bookingStatus == 'PENDING'" 
+                class="btn-act edit" 
+                title="Edit Parameters" 
+                (click)="openEditModal(b)">
+                  ✏️
+                </button>
+
+                <!-- Confirm (if pending/cancelled) -->
+                <button 
+                  *ngIf="b.bookingStatus == 'PENDING'" 
+                  class="btn-act confirm" 
+                  title="Confirm Mission" 
+                  (click)="openActionDialog('CONFIRM', b)">
+                  ✅
+                </button>
+
+                <!-- Cancel (if confirmed/pending) -->
+                <button 
+                  *ngIf="b.bookingStatus == 'PENDING' " 
+                  class="btn-act cancel" 
+                  title="Cancel Mission" 
+                  (click)="openActionDialog('CANCEL', b)">
+                  🚫
+                </button>
+
+                <!-- Delete --> <!--Delete can't be used -->
+                <!-- <button 
+                  *ngIf="b.bookingStatus == 'PENDING'" 
+                  class="btn-act delete" 
+                  title="Permanently Delete" 
+                  (click)="openActionDialog('DELETE', b)">
+                  🗑️
+                </button> -->
+              </div>
+            </td>
+
+            <!-- Send Action Placeholder -->
+            <td class="text-center">
+              <button class="btn-send-pill" title="Send SMS/WhatsApp notification" (click)="sendNotification(b)">
+                📤 Send
+              </button>
+            </td>
+
+          </tr>
+
+          <tr *ngIf="!isLoading && bookings.length === 0">
+            <td colspan="9" class="no-records">No bookings match the selected criteria.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination Footer -->
+      <footer class="pagination-footer">
+        <div>
+          Showing <strong>{{ (currentPage * pageSize) + 1 }}</strong> - 
+          <strong>{{ (currentPage * pageSize) + bookings.length }}</strong> of 
+          <strong>{{ totalElements }}</strong>
+        </div>
+
+        <div class="pagination-right">
+          <div class="page-size">
+            <label>Per page:</label>
+            <select [ngModel]="pageSize" (ngModelChange)="pageSize = $event; loadData(0)">
+              <option *ngFor="let s of pageSizeOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+
+          <div class="page-btns">
+            <button [disabled]="currentPage === 0" (click)="loadData(currentPage - 1)">‹</button>
+            <button 
+              *ngFor="let p of getPageNumbers()" 
+              [class.active]="p === currentPage" 
+              (click)="loadData(p)">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="currentPage >= totalPages - 1" (click)="loadData(currentPage + 1)">›</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= EDIT POPUP MODAL ================= -->
+  <div class="modal-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>Edit Booking #{{ editingBooking?.bookingId }}</h3>
+        <button class="btn-close" (click)="closeEditModal()">✕</button>
+      </div>
+
+      <form [formGroup]="editForm" (ngSubmit)="submitEditForm()" class="modal-body">
+        <div class="form-grid">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" formControlName="bookingDate">
+          </div>
+          <div class="field">
+            <label>Day</label>
+            <input type="text" formControlName="bookingDay" readonly class="readonly">
+          </div>
+          <div class="field">
+            <label>Crop</label>
+            <select formControlName="cropName">
+              <option *ngFor="let c of cropsList" [value]="c.name">{{ c.name }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Land Size (Acres)</label>
+            <input type="number" step="0.01" formControlName="cropSize">
+          </div>
+          <div class="field">
+            <label>Farmer Name</label>
+            <input type="text" formControlName="cropOwnerName">
+          </div>
+          <div class="field">
+            <label>Phone Number</label>
+            <input type="tel" maxlength="10" formControlName="cropOwnerPhone">
+          </div>
+          <div class="field">
+            <label>Village Location</label>
+            <input type="text" formControlName="cropVillage">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select formControlName="bookingStatus">
+              <option value="PENDING">PENDING</option>
+              <option value="CONFIRMED" disabled>CONFIRMED</option>
+              <option value="CANCELLED" disabled>CANCELLED</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Internal Mission Notes</label>
+            <textarea formControlName="bookingNotes" placeholder="Pilot instructions, coordinates..."></textarea>
+          </div>
+        </div>
+
+        <div class="amount-preview">
+          <span>Re-calculated Amount: <strong>₹{{ computedAmount }}</strong> (₹{{ currentRate.price }}/tank)</span>
+        </div>
+
+        <div class="modal-foot">
+          <button type="button" class="btn-secondary" (click)="closeEditModal()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="editForm.invalid">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= ACTION CONFIRMATION DIALOG ================= -->
+<div class="modal-backdrop" *ngIf="isConfirmActionDialogOpen" (click)="closeActionDialog()">
+  <div class="confirm-dialog-box" (click)="$event.stopPropagation()">
+    <div class="dialog-icon" [ngClass]="activeActionType?.toLowerCase()">
+      {{ activeActionType === 'CONFIRM' ? '🛸' : (activeActionType === 'CANCEL' ? '🚫' : '🗑️') }}
+    </div>
+
+    <h3>Confirm {{ activeActionType }} Operation</h3>
+    <p class="dialog-desc">
+      Are you sure you want to <strong>{{ activeActionType }}</strong> Booking 
+      <strong>#{{ targetBooking?.bookingId }}</strong>?
+    </p>
+
+    <!-- Booking Specs Card -->
+    <div class="target-summary" *ngIf="targetBooking">
+      <div><span>Farmer:</span> <strong>{{ targetBooking.cropOwnerName }} ({{ targetBooking.cropOwnerPhone }})</strong></div>
+      <div><span>Crop & Land:</span> <strong>{{ targetBooking.cropName }} ({{ targetBooking.cropSize }} Acres)</strong></div>
+      <div><span>Schedule:</span> <strong>{{ targetBooking.bookingDate }} ({{ targetBooking.bookingDay }})</strong></div>
+      <div><span>Village:</span> <strong>{{ targetBooking.cropVillage }}</strong></div>
+      <div><span>Total:</span> <strong>₹{{ targetBooking.amount }}</strong></div>
+    </div>
+
+    <!-- DRONE ASSIGNMENT DROPDOWN (Shown on CONFIRM) -->
+    <div class="drone-select-container" *ngIf="activeActionType === 'CONFIRM'">
+      <label for="droneSelect"><strong>Assign Drone Machine to Mission:</strong> <span class="req">*</span></label>
+      <select id="droneSelect" [(ngModel)]="selectedDroneId" class="drone-dropdown">
+        <option value="" disabled>-- Select a Drone Machine --</option>
+        <option *ngFor="let drone of availableDrones" [value]="drone.droneId">
+          🛸 {{ drone.droneName }} (ID: {{ drone.droneId }}) - Owner: {{ drone.droneOwnerName }}
+        </option>
+      </select>
+      <small class="hint-text">
+        ℹ️ Confirming will assign this drone machine and create an operational entry in the <strong>LOGS</strong> registry.
+      </small>
+    </div>
+
+    <div class="dialog-actions">
+      <button class="btn-secondary" (click)="closeActionDialog()">Close</button>
+      <button 
+        class="btn-dialog-execute" 
+        [ngClass]="activeActionType?.toLowerCase()" 
+        [disabled]="activeActionType === 'CONFIRM' && !selectedDroneId"
+        (click)="executeAction()">
+        {{ activeActionType }}
+      </button>
+    </div>
+  </div>
+</div>
+</div>
