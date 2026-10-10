@@ -13,13 +13,12 @@
     <div class="header-left">
       <div class="title-with-pill">
         <h1>Drone Spraying Bookings</h1>
-        <span class="count-badge">{{ bookings.length }} Scheduled</span>
+        <span class="count-badge">{{ totalElements }} Scheduled</span>
       </div>
       <p>Manage, track, and schedule autonomous aerial crop fertilizer spray missions</p>
     </div>
 
     <div class="header-right">
-      <!-- Auth Toggle Placeholder for demo -->
       <button 
         type="button" 
         class="btn-auth-toggle" 
@@ -29,9 +28,8 @@
         {{ isLoggedIn ? 'Admin (Logged In)' : 'Guest (Logged Out)' }}
       </button>
 
-      <!-- Primary Action Button -->
       <button class="btn-primary-action" (click)="openCreateModal()">
-        <span class="btn-icon">➕</span>
+        <span class="material-icons btn-icon">add</span>
         <span>Book a Service</span>
       </button>
     </div>
@@ -47,7 +45,45 @@
     </div>
   </div>
 
-  <!-- Bookings Data Table -->
+  <!-- ================= SEARCH & FILTER TOOLBAR ================= -->
+  <section class="filter-strip">
+    <div class="search-box">
+      <span class="material-icons search-icon">search</span>
+      <input 
+        type="text" 
+        placeholder="Filter by farmer, phone, crop, or village..." 
+        [(ngModel)]="searchTerm" 
+        (input)="onFilterChange()">
+    </div>
+
+    <div class="status-filters">
+      <label>Status:</label>
+      <div class="pill-group">
+        <button 
+          [class.active]="statusFilter === 'ALL'" 
+          (click)="statusFilter = 'ALL'; onFilterChange()">
+          All
+        </button>
+        <button 
+          [class.active]="statusFilter === 'PENDING'" 
+          (click)="statusFilter = 'PENDING'; onFilterChange()">
+          Pending
+        </button>
+        <button 
+          [class.active]="statusFilter === 'CONFIRMED'" 
+          (click)="statusFilter = 'CONFIRMED'; onFilterChange()">
+          Confirmed
+        </button>
+        <button 
+          [class.active]="statusFilter === 'CANCELLED'" 
+          (click)="statusFilter = 'CANCELLED'; onFilterChange()">
+          Cancelled
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bookings Data Table Card -->
   <div class="table-card">
     <div *ngIf="isLoading" class="loading-state">
       <div class="spinner"></div>
@@ -65,16 +101,32 @@
       <table class="custom-table">
         <thead>
           <tr>
-            <th># Serial</th>
-            <th>Date & Day</th>
-            <th>Farmer / Owner</th>
+            <th class="sortable" (click)="setSort('bookingId')">
+              # Serial <span class="sort-indicator">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable" (click)="setSort('bookingDate')">
+              Date & Day <span class="sort-indicator">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable" (click)="setSort('cropOwnerName')">
+              Farmer / Owner <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
             <th>Phone</th>
-            <th>Crop</th>
-            <th>Land (Acres)</th>
-            <th>Village</th>
+            <th class="sortable" (click)="setSort('cropName')">
+              Crop <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable" (click)="setSort('cropSize')">
+              Land (Acres) <span class="sort-indicator">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable" (click)="setSort('cropVillage')">
+              Village <span class="sort-indicator">{{ sortBy === 'cropVillage' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
             <th>Rate / Tank</th>
-            <th>Total Amount</th>
-            <!-- Show Action column only when Logged In -->
+            <th class="sortable" (click)="setSort('amount')">
+              Total Amount <span class="sort-indicator">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
+            <th class="sortable" (click)="setSort('bookingStatus')">
+              Status <span class="sort-indicator">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            </th>
             <th *ngIf="isLoggedIn" class="text-center">Actions</th>
           </tr>
         </thead>
@@ -90,29 +142,40 @@
             <td class="farmer-col">
               <strong>{{ b.cropOwnerName }}</strong>
             </td>
-            <td class="phone-col">{{ b.cropOwnerPhone }}</td>
+            <td class="phone-col">
+              <a href="tel:{{ b.cropOwnerPhone }}" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
+            </td>
             <td>
               <span class="crop-tag">{{ b.cropName }}</span>
             </td>
-            <td>{{ b.cropSize | number:'1.2-2' }} ac</td>
+            <td><strong>{{ b.cropSize | number:'1.2-2' }}</strong> ac</td>
             <td>{{ b.cropVillage }}</td>
             <td>₹{{ b.price }}</td>
             <td class="amount-col">₹{{ b.amount }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="b.bookingStatus?.toLowerCase()">
+                {{ b.bookingStatus }}
+              </span>
+            </td>
 
-            <!-- Admin Actions (Only Visible when Logged In) -->
+            <!-- ================= MAT ICON BUTTON ACTIONS ================= -->
             <td *ngIf="isLoggedIn" class="actions-col text-center">
-              <button 
-                class="btn-icon-action btn-edit" 
-                title="Edit Booking" 
-                (click)="openEditModal(b)">
-                ✏️
-              </button>
-              <button 
-                class="btn-icon-action btn-delete" 
-                title="Delete Booking" 
-                (click)="deleteBooking(b.bookingId)">
-                🗑️
-              </button>
+              <div class="action-btn-group">
+                <button 
+                  type="button"
+                  class="mat-icon-btn edit-btn" 
+                  title="Edit Booking Parameters" 
+                  (click)="openEditModal(b)">
+                  <span class="material-icons">edit</span>
+                </button>
+                <button 
+                  type="button"
+                  class="mat-icon-btn delete-btn" 
+                  title="Delete Booking" 
+                  (click)="deleteBooking(b.bookingId)">
+                  <span class="material-icons">delete</span>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -128,7 +191,6 @@
         </div>
 
         <div class="pagination-controls">
-          <!-- Page Size Selector -->
           <div class="page-size-selector">
             <label for="pSize">Rows per page:</label>
             <select id="pSize" [value]="pageSize" (change)="onPageSizeChange($any($event.target).value)">
@@ -136,7 +198,6 @@
             </select>
           </div>
 
-          <!-- Navigation Buttons -->
           <div class="page-buttons">
             <button 
               class="btn-page-nav" 
@@ -162,17 +223,15 @@
           </div>
         </div>
       </div>
-      <!-- ================================================= -->
-
     </div>
   </div>
 
-  <!-- POPUP MODAL DIALOG FOR BOOKING -->
+  <!-- ================= POPUP MODAL DIALOG ================= -->
   <div class="modal-backdrop" *ngIf="isModalOpen" (click)="closeModal()">
     <div class="modal-card" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <span class="modal-emoji">🛸</span>
+          <span class="material-icons modal-icon">flight_takeoff</span>
           <div>
             <h3>{{ isEditMode ? 'Update Drone Spray Booking' : 'Book a Drone Spraying Service' }}</h3>
             <p>{{ isEditMode ? 'Modify mission parameters below' : 'Fill details to schedule pilot dispatch' }}</p>
@@ -183,8 +242,6 @@
 
       <form [formGroup]="bookingForm" (ngSubmit)="saveBooking()" class="modal-form">
         <div class="modal-grid">
-
-          <!-- Crop Selection Dropdown -->
           <div class="field-wrap">
             <label>Crop Name <span class="req">*</span></label>
             <select formControlName="cropName">
@@ -198,7 +255,6 @@
             </small>
           </div>
           
-          <!-- Farmer Name -->
           <div class="field-wrap">
             <label>Crop Owner / Farmer Name <span class="req">*</span></label>
             <input type="text" formControlName="cropOwnerName" placeholder="e.g. Ramesh Patel">
@@ -207,7 +263,6 @@
             </small>
           </div>
 
-          <!-- Village / Plot -->
           <div class="field-wrap">
             <label>Crop Village / Farm Location <span class="req">*</span></label>
             <input type="text" formControlName="cropVillage" placeholder="e.g. Rampur, Plot Sector 12">
@@ -216,7 +271,6 @@
             </small>
           </div>
 
-          <!-- Phone Number -->
           <div class="field-wrap">
             <label>Mobile Number (10 Digits) <span class="req">*</span></label>
             <input type="tel" maxlength="10" formControlName="cropOwnerPhone" placeholder="9876543210">
@@ -225,7 +279,6 @@
             </small>
           </div>
 
-             <!-- Land Size in Acres (max 2 decimals) -->
           <div class="field-wrap">
             <label>Land Size (Acres) <span class="req">*</span></label>
             <input 
@@ -240,7 +293,6 @@
             </small>
           </div>
 
-          <!-- Booking Date -->
           <div class="field-wrap">
             <label>Booking Date <span class="req">*</span></label>
             <input type="date" [min]="todayDate" formControlName="bookingDate">
@@ -249,22 +301,12 @@
             </small>
           </div>
 
-          <!-- Computed Booking Day -->
-          <!-- <div class="field-wrap">
-            <label>Booking Day</label>
-            <input type="text" formControlName="bookingDay" readonly class="readonly-input">
-            <small class="hint">Automatically determined from date</small>
-          </div> -->
-
-          <!-- Booking Notes -->
           <div class="field-wrap full-span">
             <label>Booking Notes</label>
             <textarea formControlName="bookingNotes" placeholder="Any additional details about the booking..."></textarea>
           </div>
-             
         </div>
 
-        <!-- Dynamic Cost Calculation Banner -->
         <div class="price-calculator-strip">
           <div class="price-cell">
             <span class="lbl">Unit Rate</span>
@@ -276,7 +318,6 @@
           </div>
         </div>
 
-        <!-- Modal Footer Actions -->
         <div class="modal-footer">
           <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
           <button type="submit" class="btn-save" [disabled]="bookingForm.invalid">

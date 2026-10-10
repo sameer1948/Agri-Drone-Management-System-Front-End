@@ -4,6 +4,7 @@ import {
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
+  FormsModule,
   Validators
 } from '@angular/forms';
 import { AgriDroneService } from '../../services/agri-drone.service';
@@ -18,29 +19,36 @@ interface ToastState {
 @Component({
   selector: 'app-booking',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './booking.component.html',
   styleUrls: ['./booking.component.scss']
 })
 export class BookingComponent implements OnInit {
-  
   private fb = inject(FormBuilder);
   private api = inject(AgriDroneService);
 
-  // --- Auth Placeholder (Default True) ---
-  isLoggedIn: boolean = true; // Toggleable for testing role permissions
+  // --- Auth Placeholder ---
+  isLoggedIn: boolean = true;
 
   bookings: Booking[] = [];
   currentRate: Rate = { price: 250 };
   isLoading: boolean = false;
 
-  // Modal Dialog Controls
+  // --- Filter & Search Controls ---
+  searchTerm: string = '';
+  statusFilter: 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' = 'ALL';
+
+  // --- Sorting Controls ---
+  sortBy: keyof Booking = 'bookingDate';
+  sortDir: 'asc' | 'desc' = 'desc';
+
+  // --- Modal Dialog Controls ---
   isModalOpen: boolean = false;
   isEditMode: boolean = false;
   editingBookingId: number | null = null;
   bookingForm!: FormGroup;
 
-  // Toast / Snackbar State
+  // --- Toast / Snackbar State ---
   toast: ToastState = {
     show: false,
     message: '',
@@ -48,15 +56,14 @@ export class BookingComponent implements OnInit {
   };
   private toastTimer: any = null;
 
-  // Pagination State
+  // --- Pagination State ---
   currentPage: number = 0;       // 0-based for Spring Boot
-  pageSize: number = 5;          // default records per page
+  pageSize: number = 5;
   totalElements: number = 0;
   totalPages: number = 0;
   isFirstPage: boolean = true;
   isLastPage: boolean = false;
   pageSizeOptions: number[] = [5, 10, 20, 50];
-
 
   // Pre-configured Crops
   crops = [
@@ -75,8 +82,7 @@ export class BookingComponent implements OnInit {
   ngOnInit(): void {
     this.todayDate = new Date().toISOString().split('T')[0];
     this.loadRate();
-    this.initForm();  
-    //this.loadBookings();
+    this.initForm();
     this.loadBookings();
   }
 
@@ -116,7 +122,6 @@ export class BookingComponent implements OnInit {
       bookingStatus: ['PENDING']
     });
 
-    // Auto-compute day of week when date changes
     this.bookingForm.get('bookingDate')?.valueChanges.subscribe((dateStr) => {
       if (dateStr) {
         const d = new Date(dateStr + 'T00:00:00');
@@ -125,33 +130,36 @@ export class BookingComponent implements OnInit {
       }
     });
 
-    // Recalculate price on crop or size change
     this.bookingForm.get('cropName')?.valueChanges.subscribe(() => this.recalculatePrice());
     this.bookingForm.get('cropSize')?.valueChanges.subscribe(() => this.recalculatePrice());
   }
 
-  // loadBookings(): void {
-  //   this.isLoading = true;
-  //   this.api.getPendingBookings().subscribe({
-  //     next: (res) => {
-  //       this.bookings = res;
-  //       this.isLoading = false;
-  //     },
-  //     error: (err) => {
-  //       console.error('Failed to load bookings:', err);
-  //       this.isLoading = false;
-  //       this.showToast('Failed to load bookings from server.', 'error');
-  //     }
-  //   });
-  // }
-
   loadBookings(page: number = this.currentPage): void {
-  this.isLoading = true;
-  this.currentPage = page;
+    this.isLoading = true;
+    this.currentPage = page;
 
-    this.api.getBookings(this.currentPage, this.pageSize, 'bookingDate', 'desc').subscribe({
+    // Call service with dynamic sort parameters
+    this.api.getBookings(this.currentPage, this.pageSize, this.sortBy as string, this.sortDir).subscribe({
       next: (res: PageResponse<Booking>) => {
-        this.bookings = res.content;
+        let items = res.content || [];
+
+        // Apply search filter (Farmer name, phone, crop, village)
+        if (this.searchTerm.trim()) {
+          const q = this.searchTerm.toLowerCase().trim();
+          items = items.filter(b =>
+            (b.cropOwnerName && b.cropOwnerName.toLowerCase().includes(q)) ||
+            (b.cropOwnerPhone && b.cropOwnerPhone.includes(q)) ||
+            (b.cropVillage && b.cropVillage.toLowerCase().includes(q)) ||
+            (b.cropName && b.cropName.toLowerCase().includes(q))
+          );
+        }
+
+        // Apply status filter
+        if (this.statusFilter !== 'ALL') {
+          items = items.filter(b => b.bookingStatus === this.statusFilter);
+        }
+
+        this.bookings = items;
         this.totalElements = res.totalElements;
         this.totalPages = res.totalPages;
         this.isFirstPage = res.first;
@@ -164,31 +172,43 @@ export class BookingComponent implements OnInit {
         this.showToast('Failed to load bookings from server.', 'error');
       }
     });
- }
+  }
 
-  // Change page
+  // --- Sorting Handler ---
+  setSort(column: keyof Booking): void {
+    if (this.sortBy === column) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortBy = column;
+      this.sortDir = 'desc';
+    }
+    this.currentPage = 0;
+    this.loadBookings(0);
+  }
+
+  // --- Filter Handler ---
+  onFilterChange(): void {
+    this.currentPage = 0;
+    this.loadBookings(0);
+  }
+
+  // --- Pagination Controls ---
   goToPage(page: number): void {
     if (page >= 0 && page < this.totalPages) {
       this.loadBookings(page);
     }
   }
 
-  // Change page size (e.g. 5, 10, 20)
   onPageSizeChange(newSize: number): void {
-    this.pageSize = newSize;
-    this.currentPage = 0; // reset to first page
+    this.pageSize = Number(newSize);
+    this.currentPage = 0;
     this.loadBookings(0);
   }
 
-  // Helper to generate page number buttons [1, 2, 3...]
   getPageNumbers(): number[] {
     return Array.from({ length: this.totalPages }, (_, i) => i);
   }
 
-  // After creating or deleting a booking, reload the current page:
-  // this.loadBookings(this.currentPage);
-
-  // Ensure 2 decimal places precision on land size
   onAcresBlur(): void {
     const ctrl = this.bookingForm.get('cropSize');
     if (ctrl?.value && !isNaN(ctrl.value)) {
@@ -252,7 +272,7 @@ export class BookingComponent implements OnInit {
     this.isModalOpen = false;
   }
 
-  // --- Submit / Save ---
+  // --- Save / Submit ---
   saveBooking(): void {
     if (this.bookingForm.invalid) {
       this.bookingForm.markAllAsTouched();
@@ -271,19 +291,15 @@ export class BookingComponent implements OnInit {
       cropVillage: formVals.cropVillage,
       price: this.currentRate.price,
       amount: this.calculatedAmount,
-      bookingNotes: formVals.bookingNotes || '', // Optional notes can be added later,
-      bookingStatus: 'PENDING' // Default status
+      bookingNotes: formVals.bookingNotes || '',
+      bookingStatus: formVals.bookingStatus || 'PENDING'
     };
 
     if (this.isEditMode && this.editingBookingId) {
-      // Update
       this.api.updateBooking(this.editingBookingId, bookingPayload).subscribe({
-        next: (updated) => {
-          const idx = this.bookings.findIndex((b) => b.bookingId === this.editingBookingId);
-          if (idx !== -1) {
-            this.bookings[idx] = updated;
-          }
+        next: () => {
           this.closeModal();
+          this.loadBookings(this.currentPage);
           this.showToast('Booking updated successfully!', 'success');
         },
         error: (err) => {
@@ -292,11 +308,10 @@ export class BookingComponent implements OnInit {
         }
       });
     } else {
-      // Create
       this.api.createBooking(bookingPayload).subscribe({
-        next: (saved) => {
-          this.bookings.unshift(saved); // add to top of existing list
+        next: () => {
           this.closeModal();
+          this.loadBookings(0); // reload first page to include newly booked item
           this.showToast('🎉 New drone spraying service booked successfully!', 'success');
         },
         error: (err) => {
@@ -318,8 +333,12 @@ export class BookingComponent implements OnInit {
 
     this.api.deleteBooking(bookingId).subscribe({
       next: () => {
-        this.bookings = this.bookings.filter((b) => b.bookingId !== bookingId);
         this.showToast(`Booking #${bookingId} deleted successfully.`, 'success');
+        // Handle page step-down if deleting the last element on page
+        const targetPage = (this.bookings.length === 1 && this.currentPage > 0)
+          ? this.currentPage - 1
+          : this.currentPage;
+        this.loadBookings(targetPage);
       },
       error: (err) => {
         console.error('Delete failed:', err);
@@ -328,20 +347,18 @@ export class BookingComponent implements OnInit {
     });
   }
 
-  // --- Snackbar / Toast Controller ---
   showToast(message: string, type: 'success' | 'error'): void {
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toast = { show: true, message, type };
     this.toastTimer = setTimeout(() => {
       this.toast.show = false;
-    }, 5000);
+    }, 4000);
   }
 
   closeToast(): void {
     this.toast.show = false;
   }
 
-  // Toggle placeholder login for demonstration
   toggleLogin(): void {
     this.isLoggedIn = !this.isLoggedIn;
     this.showToast(`Login status changed: ${this.isLoggedIn ? 'Logged In (Admin)' : 'Logged Out (Viewer)'}`, 'success');
