@@ -335,55 +335,42 @@ export class OperationComponent implements OnInit {
     }
   }
 
-  // --- Send Placeholder Action ---
-  // sendNotification(booking: Booking): void {
-  //   this.showToast(`📤 Dispatch notice queued for ${booking.cropOwnerName} (${booking.cropOwnerPhone}) via SMS/WhatsApp!`, 'success');
-
-  // }
-
-  // Inside AdminBookingsComponent class in admin-bookings.component.ts:
-
   sendNotification(booking: Booking): void {
     if (!booking.cropOwnerPhone) {
       this.showToast('Farmer mobile number is missing.', 'error');
       return;
     }
 
-    // 1. Sanitize the phone number (remove dashes, spaces, plus signs)
+    // Sanitize the phone number
     let cleanPhone = booking.cropOwnerPhone.replace(/[^0-9]/g, '');
-
-    // If a 10-digit Indian number is provided without country code, prefix with '91'
     if (cleanPhone.length === 10) {
       cleanPhone = '91' + cleanPhone;
     }
 
-    // 2. Compose a clean, professional flight mission summary
-    const message = 
-        `🌾 *AeroKrishi Drone Spraying Mission Details* 🛸
-        ━━━━━━━━━━━━━━━━━━━━
-        Dear *${booking.cropOwnerName}*, your drone spraying schedule is confirmed:
+    // Trimmed message lines to avoid wide spaces on WhatsApp
+    const messageLines = [
+      '🌾 *AeroKrishi Drone Spraying Mission Details* 🛸',
+      '━━━━━━━━━━━━━━━━━━━━',
+      `Dear *${booking.cropOwnerName}*, your drone spraying schedule is confirmed:`,
+      '',
+      `📅 *Date:* ${booking.bookingDate} (${booking.bookingDay})`,
+      `🌱 *Crop:* ${booking.cropName}`,
+      `📐 *Field Area:* ${booking.cropSize} Acres`,
+      `📍 *Village / Location:* ${booking.cropVillage}`,
+      `💰 *Rate per Tank:* ₹${booking.price}`,
+      `💵 *Estimated Total:* ₹${booking.amount}`,
+      `📊 *Status:* *${booking.bookingStatus}*`,
+      booking.bookingNotes ? `📝 *Notes:* ${booking.bookingNotes}` : '',
+      '━━━━━━━━━━━━━━━━━━━━',
+      'Our certified drone pilot will arrive with the spray payload. Please keep field water access available.',
+      '',
+      '_AeroKrishi Autonomous Fleet Systems_'
+    ].filter(line => line !== null && line !== undefined);
 
-        📅 *Date:* ${booking.bookingDate} (${booking.bookingDay})
-        🌱 *Crop:* ${booking.cropName}
-        📐 *Field Area:* ${booking.cropSize} Acres
-        📍 *Village / Location:* ${booking.cropVillage}
-        💰 *Rate per Tank:* ₹${booking.price}
-        💵 *Estimated Total:* ₹${booking.amount}
-        📊 *Status:* *${booking.bookingStatus}*
-        ${booking.bookingNotes ? `📝 *Notes:* ${booking.bookingNotes}\n` : ''}━━━━━━━━━━━━━━━━━━━━
-        Our certified drone pilot will arrive with the spray payload. Please keep field water access available.
-
-        _AeroKrishi Autonomous Fleet Systems_`;
-
-    // 3. URL-encode the formatted message
-    const encodedMessage = encodeURIComponent(message);
-
-    // 4. Construct WhatsApp Click-to-Chat URL
+    const encodedMessage = encodeURIComponent(messageLines.join('\n'));
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
 
-    // 5. Open in a new browser tab
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-
     this.showToast(`Opening WhatsApp chat for ${booking.cropOwnerName}...`, 'success');
   }
 

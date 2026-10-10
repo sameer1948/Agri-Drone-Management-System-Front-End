@@ -1,13 +1,16 @@
 <div class="admin-panel-container">
   <!-- Toast Message -->
   <div *ngIf="toast.show" class="admin-toast" [ngClass]="'toast-' + toast.type">
-    <span>{{ toast.type === 'success' ? '✅' : '⚠️' }} {{ toast.message }}</span>
+    <div class="toast-content">
+      <span class="material-icons toast-icon">{{ toast.type === 'success' ? 'check_circle' : 'warning' }}</span>
+      <span>{{ toast.message }}</span>
+    </div>
     <button (click)="toast.show = false">✕</button>
   </div>
 
   <!-- Unauthorized State (If Logged Out) -->
   <div *ngIf="!isAdminLoggedIn" class="unauthorized-card">
-    <div class="lock-icon">🔒</div>
+    <span class="material-icons lock-icon">lock</span>
     <h2>Admin Access Restricted</h2>
     <p>You must authenticate as a certified drone fleet administrator to access booking controls.</p>
     <button class="btn-primary" (click)="isAdminLoggedIn = true">Simulate Admin Login</button>
@@ -25,8 +28,14 @@
       </div>
 
       <div class="header-tools">
-        <button class="btn-toggle-auth" (click)="isAdminLoggedIn = false">Logout Admin</button>
-        <a routerLink="/booking" class="btn-create-nav">+ New Booking</a>
+        <button class="btn-toggle-auth" (click)="isAdminLoggedIn = false">
+          <span class="material-icons icon-sm">logout</span>
+          <span>Logout Admin</span>
+        </button>
+        <a routerLink="/booking" class="btn-create-nav">
+          <span class="material-icons icon-sm">add</span>
+          <span>New Booking</span>
+        </a>
       </div>
     </header>
 
@@ -54,7 +63,7 @@
     <section class="filter-bar">
       <!-- Search Input -->
       <div class="search-wrap">
-        <span class="search-glyph">🔍</span>
+        <span class="material-icons search-glyph">search</span>
         <input 
           type="text" 
           placeholder="Search by farmer name, phone, or village..." 
@@ -82,7 +91,10 @@
         </select>
       </div>
 
-      <button class="btn-apply-filter" (click)="loadData(0)">Apply</button>
+      <button class="btn-apply-filter" (click)="loadData(0)">
+        <span class="material-icons icon-sm">filter_alt</span>
+        <span>Apply</span>
+      </button>
     </section>
 
     <!-- Bookings Data Table -->
@@ -92,119 +104,115 @@
         <p>Syncing operations data...</p>
       </div>
 
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th (click)="toggleSort('bookingId')" class="sortable">
-              ID <span class="sort-icon">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('bookingDate')" class="sortable">
-              Date & Schedule <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('cropOwnerName')" class="sortable">
-              Farmer / Contact <span class="sort-icon">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th>Crop & Village</th>
-            <th (click)="toggleSort('cropSize')" class="sortable">
-              Size (Ac) <span class="sort-icon">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('amount')" class="sortable">
-              Total Amount <span class="sort-icon">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('bookingStatus')" class="sortable">
-              Status <span class="sort-icon">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th class="text-center">Admin Controls</th>
-            <th class="text-center">Send Alert</th>
-          </tr>
-        </thead>
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th (click)="toggleSort('bookingId')" class="sortable">
+                ID <span class="sort-icon">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('bookingDate')" class="sortable">
+                Date & Schedule <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('cropOwnerName')" class="sortable">
+                Farmer / Contact <span class="sort-icon">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th>Crop & Village</th>
+              <th (click)="toggleSort('cropSize')" class="sortable">
+                Size (Ac) <span class="sort-icon">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('amount')" class="sortable">
+                Total Amount <span class="sort-icon">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('bookingStatus')" class="sortable">
+                Status <span class="sort-icon">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th class="text-center">Admin Controls</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          <tr *ngFor="let b of bookings" [class.cancelled-row]="b.bookingStatus === 'CANCELLED'">
-            <td class="bold">#{{ b.bookingId }}</td>
-            <td>
-              <div class="date-cell">
-                <span class="date">{{ b.bookingDate }}</span>
-                <span class="day">{{ b.bookingDay }}</span>
-              </div>
-            </td>
-            <td>
-              <div class="farmer-cell">
-                <strong>{{ b.cropOwnerName }}</strong>
-                <a href="tel:{{ b.cropOwnerPhone }}" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
-              </div>
-            </td>
-            <td>
-              <span class="crop-badge">{{ b.cropName }}</span>
-              <small class="village-text">📍 {{ b.cropVillage }}</small>
-            </td>
-            <td><strong>{{ b.cropSize | number:'1.2-2' }}</strong> ac</td>
-            <td class="amount-text">₹{{ b.amount }}</td>
-            <td>
-              <span class="status-pill" [ngClass]="b.bookingStatus!.toLowerCase()">
-                {{ b.bookingStatus }}
-              </span>
-            </td>
+          <tbody>
+            <tr *ngFor="let b of bookings" [class.cancelled-row]="b.bookingStatus === 'CANCELLED'">
+              <td class="bold">#{{ b.bookingId }}</td>
+              <td>
+                <div class="date-cell">
+                  <span class="date">{{ b.bookingDate }}</span>
+                  <span class="day">{{ b.bookingDay }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="farmer-cell">
+                  <strong>{{ b.cropOwnerName }}</strong>
+                  <a href="tel:{{ b.cropOwnerPhone }}" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
+                </div>
+              </td>
+              <td>
+                <span class="crop-badge">{{ b.cropName }}</span>
+                <small class="village-text">📍 {{ b.cropVillage }}</small>
+              </td>
+              <td><strong>{{ b.cropSize | number:'1.2-2' }}</strong> ac</td>
+              <td class="amount-text">₹{{ b.amount }}</td>
+              <td>
+                <span class="status-pill" [ngClass]="b.bookingStatus!.toLowerCase()">
+                  {{ b.bookingStatus }}
+                </span>
+              </td>
 
-            <!-- Admin Actions -->
-            <td class="text-center">
-              <div class="action-btn-group">
-                <!-- Edit -->
-                <button 
-                *ngIf="b.bookingStatus == 'PENDING'" 
-                class="btn-act edit" 
-                title="Edit Parameters" 
-                (click)="openEditModal(b)">
-                  ✏️
-                </button>
+              <!-- Integrated Admin Actions Column -->
+              <td class="text-center actions-cell">
+                <div class="action-btn-group">
+                  <!-- Send WhatsApp Notification -->
+                  <button 
+                    type="button"
+                    class="btn-mat-icon send" 
+                    title="Send WhatsApp Dispatch Notice" 
+                    (click)="sendNotification(b)">
+                    <span class="material-icons">chat</span>
+                  </button>
 
-                <!-- Confirm (if pending/cancelled) -->
-                <button 
-                  *ngIf="b.bookingStatus == 'PENDING'" 
-                  class="btn-act confirm" 
-                  title="Confirm Mission" 
-                  (click)="openActionDialog('CONFIRM', b)">
-                  ✅
-                </button>
+                  <!-- Edit (Pending only) -->
+                  <button 
+                    type="button"
+                    *ngIf="b.bookingStatus === 'PENDING'" 
+                    class="btn-mat-icon edit" 
+                    title="Edit Parameters" 
+                    (click)="openEditModal(b)">
+                    <span class="material-icons">edit</span>
+                  </button>
 
-                <!-- Cancel (if confirmed/pending) -->
-                <button 
-                  *ngIf="b.bookingStatus == 'PENDING' " 
-                  class="btn-act cancel" 
-                  title="Cancel Mission" 
-                  (click)="openActionDialog('CANCEL', b)">
-                  🚫
-                </button>
+                  <!-- Confirm (Pending only) -->
+                  <button 
+                    type="button"
+                    *ngIf="b.bookingStatus === 'PENDING'" 
+                    class="btn-mat-icon confirm" 
+                    title="Confirm Mission" 
+                    (click)="openActionDialog('CONFIRM', b)">
+                    <span class="material-icons">check_circle</span>
+                  </button>
 
-                <!-- Delete --> <!--Delete can't be used -->
-                <!-- <button 
-                  *ngIf="b.bookingStatus == 'PENDING'" 
-                  class="btn-act delete" 
-                  title="Permanently Delete" 
-                  (click)="openActionDialog('DELETE', b)">
-                  🗑️
-                </button> -->
-              </div>
-            </td>
+                  <!-- Cancel (Pending only) -->
+                  <button 
+                    type="button"
+                    *ngIf="b.bookingStatus === 'PENDING'" 
+                    class="btn-mat-icon cancel" 
+                    title="Cancel Mission" 
+                    (click)="openActionDialog('CANCEL', b)">
+                    <span class="material-icons">cancel</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
 
-            <!-- Send Action Placeholder -->
-            <td class="text-center">
-              <button class="btn-send-pill" title="Send SMS/WhatsApp notification" (click)="sendNotification(b)">
-                📤 Send
-              </button>
-            </td>
-
-          </tr>
-
-          <tr *ngIf="!isLoading && bookings.length === 0">
-            <td colspan="9" class="no-records">No bookings match the selected criteria.</td>
-          </tr>
-        </tbody>
-      </table>
+            <tr *ngIf="!isLoading && bookings.length === 0">
+              <td colspan="8" class="no-records">No bookings match the selected criteria.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Pagination Footer -->
       <footer class="pagination-footer">
-        <div>
+        <div class="pagination-info">
           Showing <strong>{{ (currentPage * pageSize) + 1 }}</strong> - 
           <strong>{{ (currentPage * pageSize) + bookings.length }}</strong> of 
           <strong>{{ totalElements }}</strong>
@@ -237,7 +245,10 @@
   <div class="modal-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
     <div class="modal-box" (click)="$event.stopPropagation()">
       <div class="modal-head">
-        <h3>Edit Booking #{{ editingBooking?.bookingId }}</h3>
+        <div class="head-title">
+          <span class="material-icons icon-sm">edit</span>
+          <h3>Edit Booking #{{ editingBooking?.bookingId }}</h3>
+        </div>
         <button class="btn-close" (click)="closeEditModal()">✕</button>
       </div>
 
@@ -300,51 +311,53 @@
   </div>
 
   <!-- ================= ACTION CONFIRMATION DIALOG ================= -->
-<div class="modal-backdrop" *ngIf="isConfirmActionDialogOpen" (click)="closeActionDialog()">
-  <div class="confirm-dialog-box" (click)="$event.stopPropagation()">
-    <div class="dialog-icon" [ngClass]="activeActionType?.toLowerCase()">
-      {{ activeActionType === 'CONFIRM' ? '🛸' : (activeActionType === 'CANCEL' ? '🚫' : '🗑️') }}
-    </div>
+  <div class="modal-backdrop" *ngIf="isConfirmActionDialogOpen" (click)="closeActionDialog()">
+    <div class="confirm-dialog-box" (click)="$event.stopPropagation()">
+      <div class="dialog-icon" [ngClass]="activeActionType?.toLowerCase()">
+        <span class="material-icons">
+          {{ activeActionType === 'CONFIRM' ? 'flight_takeoff' : (activeActionType === 'CANCEL' ? 'cancel' : 'delete') }}
+        </span>
+      </div>
 
-    <h3>Confirm {{ activeActionType }} Operation</h3>
-    <p class="dialog-desc">
-      Are you sure you want to <strong>{{ activeActionType }}</strong> Booking 
-      <strong>#{{ targetBooking?.bookingId }}</strong>?
-    </p>
+      <h3>Confirm {{ activeActionType }} Operation</h3>
+      <p class="dialog-desc">
+        Are you sure you want to <strong>{{ activeActionType }}</strong> Booking 
+        <strong>#{{ targetBooking?.bookingId }}</strong>?
+      </p>
 
-    <!-- Booking Specs Card -->
-    <div class="target-summary" *ngIf="targetBooking">
-      <div><span>Farmer:</span> <strong>{{ targetBooking.cropOwnerName }} ({{ targetBooking.cropOwnerPhone }})</strong></div>
-      <div><span>Crop & Land:</span> <strong>{{ targetBooking.cropName }} ({{ targetBooking.cropSize }} Acres)</strong></div>
-      <div><span>Schedule:</span> <strong>{{ targetBooking.bookingDate }} ({{ targetBooking.bookingDay }})</strong></div>
-      <div><span>Village:</span> <strong>{{ targetBooking.cropVillage }}</strong></div>
-      <div><span>Total:</span> <strong>₹{{ targetBooking.amount }}</strong></div>
-    </div>
+      <!-- Booking Specs Card -->
+      <div class="target-summary" *ngIf="targetBooking">
+        <div><span>Farmer:</span> <strong>{{ targetBooking.cropOwnerName }} ({{ targetBooking.cropOwnerPhone }})</strong></div>
+        <div><span>Crop & Land:</span> <strong>{{ targetBooking.cropName }} ({{ targetBooking.cropSize }} Acres)</strong></div>
+        <div><span>Schedule:</span> <strong>{{ targetBooking.bookingDate }} ({{ targetBooking.bookingDay }})</strong></div>
+        <div><span>Village:</span> <strong>{{ targetBooking.cropVillage }}</strong></div>
+        <div><span>Total:</span> <strong>₹{{ targetBooking.amount }}</strong></div>
+      </div>
 
-    <!-- DRONE ASSIGNMENT DROPDOWN (Shown on CONFIRM) -->
-    <div class="drone-select-container" *ngIf="activeActionType === 'CONFIRM'">
-      <label for="droneSelect"><strong>Assign Drone Machine to Mission:</strong> <span class="req">*</span></label>
-      <select id="droneSelect" [(ngModel)]="selectedDroneId" class="drone-dropdown">
-        <option value="" disabled>-- Select a Drone Machine --</option>
-        <option *ngFor="let drone of availableDrones" [value]="drone.droneId">
-          🛸 {{ drone.droneName }} (ID: {{ drone.droneId }}) - Owner: {{ drone.droneOwnerName }}
-        </option>
-      </select>
-      <small class="hint-text">
-        ℹ️ Confirming will assign this drone machine and create an operational entry in the <strong>LOGS</strong> registry.
-      </small>
-    </div>
+      <!-- DRONE ASSIGNMENT DROPDOWN (Shown on CONFIRM) -->
+      <div class="drone-select-container" *ngIf="activeActionType === 'CONFIRM'">
+        <label for="droneSelect"><strong>Assign Drone Machine to Mission:</strong> <span class="req">*</span></label>
+        <select id="droneSelect" [(ngModel)]="selectedDroneId" class="drone-dropdown">
+          <option value="" disabled>-- Select a Drone Machine --</option>
+          <option *ngFor="let drone of availableDrones" [value]="drone.droneId">
+            🛸 {{ drone.droneName }} (ID: {{ drone.droneId }}) - Owner: {{ drone.droneOwnerName }}
+          </option>
+        </select>
+        <small class="hint-text">
+          ℹ️ Confirming will assign this drone machine and create an operational entry in the <strong>LOGS</strong> registry.
+        </small>
+      </div>
 
-    <div class="dialog-actions">
-      <button class="btn-secondary" (click)="closeActionDialog()">Close</button>
-      <button 
-        class="btn-dialog-execute" 
-        [ngClass]="activeActionType?.toLowerCase()" 
-        [disabled]="activeActionType === 'CONFIRM' && !selectedDroneId"
-        (click)="executeAction()">
-        {{ activeActionType }}
-      </button>
+      <div class="dialog-actions">
+        <button class="btn-secondary" (click)="closeActionDialog()">Close</button>
+        <button 
+          class="btn-dialog-execute" 
+          [ngClass]="activeActionType?.toLowerCase()" 
+          [disabled]="activeActionType === 'CONFIRM' && !selectedDroneId"
+          (click)="executeAction()">
+          Yes, {{ activeActionType }}
+        </button>
+      </div>
     </div>
   </div>
-</div>
 </div>
