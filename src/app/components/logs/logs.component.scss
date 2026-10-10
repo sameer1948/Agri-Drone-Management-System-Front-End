@@ -1,5 +1,5 @@
 .logs-container {
-  max-width: 1380px;
+  max-width: 1420px;
   margin: 1.5rem auto 3rem auto;
   padding: 0 1.25rem;
   font-family: system-ui, -apple-system, sans-serif;
@@ -213,18 +213,18 @@
     border-bottom: 1px solid #f1f5f9;
     transition: background 0.15s;
 
-    &:hover { background: #f8fafc; }
+    &.clickable-row {
+      cursor: pointer;
+      &:hover { background: #f1f5f9 !important; }
+    }
+
     &.row-pending { background: #fffdf5; }
+    &.row-settled { background: #fafffc; }
 
     td {
       padding: 12px 14px;
       vertical-align: middle;
     }
-  }
-
-  .bold-text {
-    font-weight: 700;
-    color: #475569;
   }
 
   .cell-stack {
@@ -273,6 +273,20 @@
     color: #15803d;
   }
 
+  .pending-pill {
+    font-weight: 700;
+    color: #b45309;
+    background: #fef3c7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+  }
+
+  .zero-pending {
+    color: #94a3b8;
+    font-size: 0.82rem;
+  }
+
   .status-badge {
     padding: 4px 8px;
     border-radius: 999px;
@@ -288,6 +302,16 @@
     &.pending {
       background: #fef3c7;
       color: #92400e;
+    }
+
+    &.confirmed {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    &.completed {
+      background: #dcfce7;
+      color: #15803d;
     }
   }
 
@@ -335,6 +359,9 @@
       background: #dcfce7;
       padding: 4px 8px;
       border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
   }
 
@@ -413,7 +440,10 @@
 .modal-card {
   background: white;
   width: 100%;
-  max-width: 600px;
+  max-width: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   border-radius: 14px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   overflow: hidden;
@@ -440,6 +470,10 @@
     background: linear-gradient(135deg, #1e40af, #2563eb);
   }
 
+  &.header-details {
+    background: linear-gradient(135deg, #334155, #1e293b);
+  }
+
   .header-title-wrap {
     display: flex;
     align-items: center;
@@ -463,6 +497,7 @@
 
 .modal-body {
   padding: 1.5rem;
+  overflow-y: auto;
 
   .specs-grid {
     display: grid;
@@ -492,38 +527,64 @@
     }
   }
 
-  .amount-banner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    padding: 12px 16px;
-    border-radius: 8px;
+  /* Financial Summary Grid */
+  .financial-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
     margin-top: 1rem;
 
-    .lbl {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #166534;
-      text-transform: uppercase;
-    }
+    .fin-box {
+      padding: 10px 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #e2e8f0;
 
-    .val {
-      font-size: 1.4rem;
-      font-weight: 800;
-      color: #15803d;
+      .fin-lbl {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .fin-val {
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin-top: 4px;
+      }
+
+      &.total {
+        background: #f8fafc;
+        .fin-lbl { color: #475569; }
+        .fin-val { color: #0f172a; }
+      }
+
+      &.paid {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        .fin-lbl { color: #166534; }
+        .fin-val { color: #15803d; }
+      }
+
+      &.pending {
+        background: #fffbeb;
+        border-color: #fde68a;
+        .fin-lbl { color: #92400e; }
+        .fin-val { color: #b45309; }
+      }
     }
   }
 
+  /* Payment Form Section */
   .payment-form-section {
     margin-top: 1.25rem;
 
     label {
       display: block;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       color: #334155;
       margin-bottom: 6px;
+      font-weight: 700;
 
       .req { color: #dc2626; }
     }
@@ -541,6 +602,93 @@
         border-color: #2563eb;
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
       }
+    }
+
+    /* Radio Selection Styling */
+    .radio-selection-block {
+      margin-top: 14px;
+
+      .radio-options-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 6px;
+
+        .radio-tile {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border: 1.5px solid #cbd5e1;
+          border-radius: 8px;
+          cursor: pointer;
+          background: #f8fafc;
+          transition: all 0.2s ease;
+
+          input[type="radio"] {
+            cursor: pointer;
+          }
+
+          .radio-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #334155;
+          }
+
+          &.selected {
+            border-color: #2563eb;
+            background: #eff6ff;
+            .radio-label { color: #1d4ed8; }
+          }
+        }
+      }
+    }
+
+    /* Input Amount Field */
+    .amount-input-group {
+      margin-top: 14px;
+
+      .input-with-symbol {
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .currency-symbol {
+          position: absolute;
+          left: 12px;
+          font-weight: 700;
+          color: #64748b;
+          pointer-events: none;
+        }
+
+        .num-field {
+          padding-left: 28px !important;
+        }
+      }
+
+      .readonly-mode {
+        background: #f1f5f9;
+        color: #475569;
+        cursor: not-allowed;
+        font-weight: 700;
+        border-color: #e2e8f0;
+      }
+
+      .error-border {
+        border-color: #ef4444 !important;
+        background: #fef2f2;
+      }
+    }
+
+    .validation-alert {
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 6px;
     }
   }
 
@@ -588,6 +736,11 @@
     background: #2563eb;
     color: white;
     &:hover { background: #1d4ed8; }
+
+    &:disabled {
+      background: #94a3b8 !important;
+      cursor: not-allowed;
+    }
   }
 }
 
@@ -616,7 +769,16 @@
   .specs-grid {
     grid-template-columns: 1fr !important;
   }
+
+  .financial-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .radio-options-row {
+    flex-direction: column;
+  }
 }
+
 .icon-glyph {
   font-size: 18px !important;
   width: 18px;
@@ -630,6 +792,5 @@
 
 .settled-glyph {
   font-size: 16px !important;
-  color: #16a34a;
+  color: #166534;
 }
-

@@ -59,7 +59,7 @@
         <button 
           [class.active]="selectedStatusFilter === 'PAID'" 
           (click)="selectedStatusFilter = 'PAID'; applyFiltersAndSort()">
-          Paid
+          Settled
         </button>
       </div>
     </div>
@@ -76,9 +76,6 @@
       <table class="logs-table">
         <thead>
           <tr>
-            <!-- <th (click)="setSort('logId')" class="sortable">
-              # Serial <span class="sort-indicator">{{ sortBy === 'logId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th> -->
             <th (click)="setSort('createDate')" class="sortable">
               Create Date & Time <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
@@ -97,8 +94,10 @@
             <th (click)="setSort('amount')" class="sortable">
               Total <span class="sort-indicator">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
-             <th (click)="setSort('completeDate')" class="sortable">
-              Complete Date & Time <span class="sort-indicator">{{ sortBy === 'completeDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+            <!-- NEW PENDING COLUMN -->
+            <th>Pending</th>
+            <th (click)="setSort('completeDate')" class="sortable">
+              Complete Date <span class="sort-indicator">{{ sortBy === 'completeDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('activityStatus')" class="sortable">
               Activity Status <span class="sort-indicator">{{ sortBy === 'activityStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
@@ -111,8 +110,15 @@
         </thead>
 
         <tbody>
-          <tr *ngFor="let log of pagedLogs" [class.row-pending]="log.paymentStatus === 'PENDING'">
-            <!-- <td class="bold-text"># {{ log.logId }}</td> -->
+          <!-- CLICKABLE ROW: openRowDetails(log) -->
+          <tr 
+            *ngFor="let log of pagedLogs" 
+            [class.row-pending]="!isFullySettled(log)"
+            [class.row-settled]="isFullySettled(log)"
+            class="clickable-row"
+            (click)="openRowDetails(log)"
+            title="Click to view complete details">
+
             <td>
               <div class="cell-stack">
                 <span class="cell-main">{{ log.createDate }}</span>
@@ -122,7 +128,7 @@
             <td>
               <div class="cell-stack">
                 <span class="cell-main">{{ log.cropOwnerName }}</span>
-                <a href="tel:{{ log.cropOwnerPhone }}" class="phone-link">📞 {{ log.cropOwnerPhone }}</a>
+                <a href="tel:{{ log.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">📞 {{ log.cropOwnerPhone }}</a>
               </div>
             </td>
             <td>
@@ -134,72 +140,81 @@
             <td><strong>{{ log.cropSize | number:'1.1-2' }}</strong> ac</td>
             <td><span class="tank-pill">🧪 {{ log.tankUsage }}</span></td>
             <td class="amount-val">₹{{ log.amount }}</td>
+
+            <!-- Real-time Pending Amount Column -->
             <td>
-              <div class="cell-stack">
-                <span class="cell-main">{{ log.completeDate }}</span>
-                <span class="cell-sub">{{ log.completeTime }}</span>
-              </div>
-            </td>
-            <td>
-              <span class="status-badge" [ngClass]="log.activityStatus.toLowerCase()">
-                {{ log.activityStatus }}
+              <span *ngIf="getPendingAmountForLog(log) > 0" class="pending-pill">
+                ₹{{ getPendingAmountForLog(log) }}
               </span>
-            </td>
-            <td>
-              <span class="status-badge" [ngClass]="log.paymentStatus.toLowerCase()">
-                {{ log.paymentStatus }}
+              <span *ngIf="getPendingAmountForLog(log) === 0" class="zero-pending">
+                ₹0.00
               </span>
             </td>
 
-            <!-- Conditional Action Column -->
-            <td class="actions-cell">
-            <!-- <ng-container *ngIf="log.activityStatus === 'CONFIRMED' && log.paymentStatus === 'PENDING'"> -->
-              <div class="btn-group">
+            <td>
+              <div class="cell-stack" *ngIf="log.completeDate">
+                <span class="cell-main">{{ log.completeDate }}</span>
+                <span class="cell-sub">{{ log.completeTime }}</span>
+              </div>
+              <span *ngIf="!log.completeDate" class="cell-sub">—</span>
+            </td>
+
+            <td>
+              <span class="status-badge" [ngClass]="log.activityStatus?.toLowerCase()">
+                {{ log.activityStatus }}
+              </span>
+            </td>
+
+            <!-- Payment Status Badge (Settled if 0 pending) -->
+            <td>
+              <span class="status-badge" [ngClass]="isFullySettled(log) ? 'paid' : 'pending'">
+                {{ isFullySettled(log) ? 'SETTLED' : 'PENDING' }}
+              </span>
+            </td>
+
+            <!-- Action Column with event.stopPropagation() -->
+            <td class="actions-cell" (click)="$event.stopPropagation()">
+              <div class="btn-group" *ngIf="!isFullySettled(log)">
                 <!-- Completed Button -->
                 <button 
-                  *ngIf="log.activityStatus === 'CONFIRMED' && log.paymentStatus === 'PENDING'"
+                  *ngIf="log.activityStatus === 'CONFIRMED'"
                   type="button" 
                   class="btn-action btn-confirm" 
                   title="Confirm & verify Spraying details" 
-                  (click)="openConfirmDialog(log)">
+                  (click)="openConfirmDialog(log, $event)">
                   <span class="material-icons icon-glyph">check_circle</span>
-                  <!-- <span>Completed</span> -->
                 </button>
 
                 <!-- Send Reminder Button -->
                 <button 
-                  *ngIf="log.paymentStatus === 'PENDING'"
                   type="button" 
                   class="btn-action btn-remind" 
                   title="Send WhatsApp payment reminder" 
-                  (click)="sendPaymentReminder(log)">
+                  (click)="sendPaymentReminder(log, $event)">
                   <span class="material-icons icon-glyph">chat</span>
-                  <!-- <span>Send Reminder</span> -->
                 </button>
 
                 <!-- Payment Received Button -->
                 <button 
-                  *ngIf="log.paymentStatus === 'PENDING'"
                   type="button" 
                   class="btn-action btn-pay" 
                   title="Open payment settlement dialog" 
-                  (click)="openPaymentDialog(log)">
+                  (click)="openPaymentDialog(log, $event)">
                   <span class="material-icons icon-glyph">payments</span>
-                  <!-- <span>Payment Received</span> -->
                 </button>
               </div>
-            <!-- </ng-container> -->
 
-            <ng-container *ngIf="log.paymentStatus === 'PAID'">
-              <span class="settled-tag">
-                <span class="material-icons icon-glyph settled-glyph">verified</span>
-                <span>Settled</span>
-              </span>
-            </ng-container>
+              <div *ngIf="isFullySettled(log)">
+                <span class="settled-tag">
+                  <span class="material-icons icon-glyph settled-glyph">verified</span>
+                  <span>Settled</span>
+                </span>
+              </div>
             </td>
+          </tr>
 
           <tr *ngIf="pagedLogs.length === 0">
-            <td colspan="9" class="no-records">
+            <td colspan="11" class="no-records">
               No spraying logs found matching the filter criteria.
             </td>
           </tr>
@@ -237,17 +252,29 @@
     </footer>
   </div>
 
-  <!-- ================= UNIFIED ACTION DIALOG MODAL ================= -->
+  <!-- ================= UNIFIED MODAL DIALOG ================= -->
   <div class="modal-backdrop" *ngIf="isDialogOpen" (click)="closeDialog()">
     <div class="modal-card" (click)="$event.stopPropagation()">
       
       <!-- DIALOG HEADER -->
-      <div class="modal-header" [ngClass]="activeDialogMode === 'CONFIRM_MISSION' ? 'header-confirm' : 'header-pay'">
+      <div class="modal-header" [ngClass]="{
+        'header-confirm': activeDialogMode === 'CONFIRM_MISSION',
+        'header-pay': activeDialogMode === 'RECEIVE_PAYMENT',
+        'header-details': activeDialogMode === 'VIEW_DETAILS'
+      }">
         <div class="header-title-wrap">
-          <span class="header-icon">{{ activeDialogMode === 'CONFIRM_MISSION' ? '✅' : '💳' }}</span>
+          <span class="header-icon">
+            {{ activeDialogMode === 'CONFIRM_MISSION' ? '✅' : (activeDialogMode === 'RECEIVE_PAYMENT' ? '💳' : '📋') }}
+          </span>
           <div>
-            <h3>{{ activeDialogMode === 'CONFIRM_MISSION' ? 'Verify & Confirm Mission' : 'Record Received Payment' }}</h3>
-            <p>{{ activeDialogMode === 'CONFIRM_MISSION' ? 'Review all spraying specifications' : 'Settle invoice and mark status as PAID' }}</p>
+            <h3>
+              {{ activeDialogMode === 'CONFIRM_MISSION' ? 'Verify & Confirm Mission' : 
+                 (activeDialogMode === 'RECEIVE_PAYMENT' ? 'Record Received Payment' : 'Flight & Payment Mission Details') }}
+            </h3>
+            <p>
+              {{ activeDialogMode === 'CONFIRM_MISSION' ? 'Review all spraying specifications' : 
+                 (activeDialogMode === 'RECEIVE_PAYMENT' ? 'Settle invoice with full or custom amount' : 'Complete overview of selected record') }}
+            </p>
           </div>
         </div>
         <button class="btn-modal-close" (click)="closeDialog()">✕</button>
@@ -261,7 +288,7 @@
             <strong class="spec-value">#{{ selectedLog.logId }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Flight Date & Time:</span>
+            <span class="spec-label">Flight Created:</span>
             <strong class="spec-value">{{ selectedLog.createDate }} at {{ selectedLog.createTime }}</strong>
           </div>
           <div class="spec-item">
@@ -288,24 +315,92 @@
             <span class="spec-label">Tank Usage:</span>
             <strong class="spec-value">{{ selectedLog.tankUsage }} Tanks</strong>
           </div>
+          <div class="spec-item" *ngIf="selectedLog.completeDate">
+            <span class="spec-label">Completed At:</span>
+            <strong class="spec-value">{{ selectedLog.completeDate }} {{ selectedLog.completeTime }}</strong>
+          </div>
         </div>
 
-        <!-- Total Amount Card -->
-        <div class="amount-banner">
-          <span class="lbl">Total Mission Amount</span>
-          <span class="val">₹{{ selectedLog.amount }}</span>
+        <!-- Financial Summary Banner -->
+        <div class="financial-summary-grid">
+          <div class="fin-box total">
+            <span class="fin-lbl">Total Amount</span>
+            <strong class="fin-val">₹{{ selectedLog.amount }}</strong>
+          </div>
+          <div class="fin-box paid">
+            <span class="fin-lbl">Paid Amount</span>
+            <strong class="fin-val">₹{{ getPaidAmountForLog(selectedLog) }}</strong>
+          </div>
+          <div class="fin-box pending">
+            <span class="fin-lbl">Pending Amount</span>
+            <strong class="fin-val">₹{{ getPendingAmountForLog(selectedLog) }}</strong>
+          </div>
         </div>
 
-        <!-- PAYMENT MODE DROPDOWN (Only for RECEIVE_PAYMENT) -->
+        <!-- ================= RECEIVE PAYMENT FORM SECTION ================= -->
         <div class="payment-form-section" *ngIf="activeDialogMode === 'RECEIVE_PAYMENT'">
-          
           <label for="payType"><strong>Select Payment Mode:</strong> <span class="req">*</span></label>
           <select id="payType" [(ngModel)]="paymentMode" class="dropdown-input">
-            <option value="CASH">💵 Cash </option>
+            <option value="CASH">💵 Cash</option>
             <option value="TRANSFER">📱 UPI / Online Bank Transfer</option>
           </select>
 
-          <label for="refNote" style="margin-top: 10px;"><strong>Transaction Ref / Notes (Optional):</strong></label>
+          <!-- RADIO SELECTION: Fully Paid vs Custom Amount -->
+          <div class="radio-selection-block">
+            <label class="section-title"><strong>Settlement Type:</strong> <span class="req">*</span></label>
+            <div class="radio-options-row">
+              <label class="radio-tile" [class.selected]="paymentRadioOption === 'FULL'">
+                <input 
+                  type="radio" 
+                  name="paymentTypeRadio" 
+                  value="FULL" 
+                  [(ngModel)]="paymentRadioOption" 
+                  (change)="onPaymentRadioChange()">
+                <span class="radio-label">✅ Fully Paid (₹{{ getPendingAmountForLog(selectedLog) }})</span>
+              </label>
+
+              <label class="radio-tile" [class.selected]="paymentRadioOption === 'CUSTOM'">
+                <input 
+                  type="radio" 
+                  name="paymentTypeRadio" 
+                  value="CUSTOM" 
+                  [(ngModel)]="paymentRadioOption" 
+                  (change)="onPaymentRadioChange()">
+                <span class="radio-label">✏️ Custom Amount</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- INPUT FIELD (Readonly if FULL, Editable if CUSTOM) -->
+          <div class="amount-input-group">
+            <label for="payAmt">
+              <strong>Amount to Collect (₹):</strong> <span class="req">*</span>
+            </label>
+            <div class="input-with-symbol">
+              <span class="currency-symbol">₹</span>
+              <input 
+                id="payAmt" 
+                type="number" 
+                step="0.01" 
+                [(ngModel)]="enteredAmount" 
+                (input)="validateCustomAmount()"
+                [readonly]="paymentRadioOption === 'FULL'" 
+                [class.readonly-mode]="paymentRadioOption === 'FULL'"
+                [class.error-border]="!!amountError"
+                placeholder="0.00" 
+                class="text-input num-field">
+            </div>
+          </div>
+
+          <!-- Validation Error Alert -->
+          <div class="validation-alert" *ngIf="amountError">
+            ⚠️ {{ amountError }}
+          </div>
+
+          <!-- Transaction Reference Note -->
+          <label for="refNote" style="margin-top: 14px; display: block;">
+            <strong>Transaction Ref / Notes (Optional):</strong>
+          </label>
           <input 
             id="refNote" 
             type="text" 
@@ -315,7 +410,7 @@
         </div>
 
         <div class="placeholder-notice" *ngIf="activeDialogMode === 'CONFIRM_MISSION'">
-          ℹ️ <em>Confirming will lock and verify this completed flight log in the central registry.</em>
+          ℹ️ <em>Confirming will lock and mark this flight mission as completed in the registry.</em>
         </div>
       </div>
 
@@ -337,6 +432,7 @@
           *ngIf="activeDialogMode === 'RECEIVE_PAYMENT'" 
           type="button" 
           class="btn-dialog-pay" 
+          [disabled]="isPaymentSubmitDisabled"
           (click)="executePaymentReceived()">
           Confirm & Record Payment
         </button>
