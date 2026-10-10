@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Booking, Drone, LogEntry, PageResponse, Payment, Rate } from '../models/drone.model';
+import { Booking, Drone, LogEntry, PageResponse, Payment, Rate, Repair } from '../models/drone.model';
 
 @Injectable({
   providedIn: 'root'
@@ -141,5 +141,20 @@ getFilteredBookings(
     return this.http.put<Payment>(`${this.baseUrl}/payments/${paymentId}`, payment);
   }
 
-  
+  // Inside AgriDroneService:
+  getRepairs(): Observable<Repair[]> {
+    return this.http.get<Repair[]>(`${this.baseUrl}/repairs`);
+  }
+
+  createRepair(repair: Repair): Observable<Repair> {
+    return this.http.post<Repair>(`${this.baseUrl}/repairs`, repair);
+  }
+
+  updateRepair(repairId: number, repair: Repair): Observable<Repair> {
+    return this.http.put<Repair>(`${this.baseUrl}/repairs/${repairId}`, repair);
+  }
+
+  deleteRepair(repairId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/repairs/${repairId}`);
+  }
 }
