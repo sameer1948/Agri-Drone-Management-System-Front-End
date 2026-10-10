@@ -129,6 +129,10 @@ getFilteredBookings(
     return this.http.get<Payment[]>(`${this.baseUrl}/payments`);
   }
 
+  getPaymentByLogId(logId: number): Observable<Payment> {
+    return this.http.get<Payment>(`${this.baseUrl}/payments/log/${logId}`);
+  }
+
   createPayment(payment: Payment): Observable<Payment> {
     return this.http.post<Payment>(`${this.baseUrl}/payments`, payment);
   }

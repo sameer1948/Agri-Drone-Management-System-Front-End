@@ -76,9 +76,9 @@
       <table class="logs-table">
         <thead>
           <tr>
-            <th (click)="setSort('logId')" class="sortable">
+            <!-- <th (click)="setSort('logId')" class="sortable">
               # Serial <span class="sort-indicator">{{ sortBy === 'logId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
+            </th> -->
             <th (click)="setSort('createDate')" class="sortable">
               Create Date & Time <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
@@ -112,7 +112,7 @@
 
         <tbody>
           <tr *ngFor="let log of pagedLogs" [class.row-pending]="log.paymentStatus === 'PENDING'">
-            <td class="bold-text"># {{ log.logId }}</td>
+            <!-- <td class="bold-text"># {{ log.logId }}</td> -->
             <td>
               <div class="cell-stack">
                 <span class="cell-main">{{ log.createDate }}</span>
@@ -163,7 +163,7 @@
                   title="Confirm & verify Spraying details" 
                   (click)="openConfirmDialog(log)">
                   <span class="material-icons icon-glyph">check_circle</span>
-                  <span>Completed</span>
+                  <!-- <span>Completed</span> -->
                 </button>
 
                 <!-- Send Reminder Button -->
@@ -174,7 +174,7 @@
                   title="Send WhatsApp payment reminder" 
                   (click)="sendPaymentReminder(log)">
                   <span class="material-icons icon-glyph">chat</span>
-                  <span>Send Reminder</span>
+                  <!-- <span>Send Reminder</span> -->
                 </button>
 
                 <!-- Payment Received Button -->
@@ -185,7 +185,7 @@
                   title="Open payment settlement dialog" 
                   (click)="openPaymentDialog(log)">
                   <span class="material-icons icon-glyph">payments</span>
-                  <span>Payment Received</span>
+                  <!-- <span>Payment Received</span> -->
                 </button>
               </div>
             <!-- </ng-container> -->

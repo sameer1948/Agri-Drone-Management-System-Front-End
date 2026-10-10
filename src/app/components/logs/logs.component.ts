@@ -177,7 +177,7 @@ export class LogsComponent implements OnInit {
     this.selectedLog = null;
   }
 
-  // --- Execute Confirm (Placeholder) ---
+  // --- Execute Confirm  ---
   executeConfirmAction(): void {
     if (!this.selectedLog) return;
 
@@ -201,13 +201,14 @@ export class LogsComponent implements OnInit {
         paymentStatus: 'PENDING' as PaymentStatus       
       };
 
-    const paymentEntry: Payment = {
+      const paymentEntry: Payment = {
       logId: this.selectedLog.logId ?? 0, // this should not be Zero or undefined, but fallback to 0 for safety
       paymentStatus: 'PENDING',
       totalAmount: Number(this.selectedLog.amount),
       paidAmount: 0.00,
       pendingAmount: Number(this.selectedLog.amount), 
     };
+
 
     this.api.updateLog(logRef!, updatedLogEntry).subscribe({
       next: (u) => {
@@ -230,44 +231,65 @@ export class LogsComponent implements OnInit {
       }
     });
 
-    
-
-    console.log(paymentEntry);
-
-
-  
-    // Placeholder: add your backend patch/update status call here in the future
-    console.log(`[Placeholder] Mission verified & confirmed for Log #${logRef}`, this.selectedLog);
-
     this.closeDialog();
-    this.showToast(`✅ Mission Log #${logRef} has been verified and confirmed!`, 'success');
+    this.showToast(`✅ Mission Log #${logRef} has been verified and confirmed and Payment record created!`, 'success');
   }
 
   // --- Execute Payment Received ---
   executePaymentReceived(): void {
-    if (!this.selectedLog?.logId) return;
+    
+    if (!this.selectedLog?.logId) {
+      this.showToast('Invalid log selection.', 'error');
+      return;
+    }
 
     const logRef = this.selectedLog.logId;
     const modeLabel = this.paymentMode === 'TRANSFER' ? 'UPI/Bank Transfer' : this.paymentMode;
 
-    this.api.updatePaymentStatus(logRef, 'PAID').subscribe({
-      next: () => {
-        if (this.selectedLog) {
-          this.selectedLog.paymentStatus = 'PAID';
+    const updatedPaymentEntry: Payment = {
+      logId: this.selectedLog.logId ?? 0, // this should not be Zero or undefined, but fallback to 0 for safety
+      paymentDate: new Date().toISOString().split('T')[0],
+      paymentTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      paymentStatus: 'PAID',
+      totalAmount: Number(this.selectedLog.amount),
+      paidAmount: Number(this.selectedLog.amount),
+      pendingAmount: 0.00, 
+      lastPaymentDate: new Date().toISOString().split('T')[0],
+      lastPaymentTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      paymentType: this.paymentMode,
+      paymentNotes: this.paymentReferenceNote 
+    };
+
+    this.api.getPaymentByLogId(this.selectedLog.logId).subscribe({
+      next: (paymentRecord) => {
+        console.log('Fetched payment record:', paymentRecord);
+        if (paymentRecord.paymentId) {
+          console.log('Found existing payment record:', paymentRecord);
+              this.api.updatePayment(paymentRecord.paymentId, updatedPaymentEntry).subscribe({
+                next: () => {
+                  if (this.selectedLog) {
+                    this.selectedLog.paymentStatus = 'PAID';
+                  }
+                  this.computeKpis();
+                  this.closeDialog();
+                  this.showToast(`💳 Payment of ₹${this.selectedLog?.amount} received via ${modeLabel} for #${logRef}!`, 'success');
+                },
+                error: (err) => {
+                  console.error('Failed to update payment status:', err);
+                  this.computeKpis();
+                  this.closeDialog();
+                  this.showToast('Failed to Update the payment record.', 'error');
+                }
+              });
+        } else {
+          this.showToast('No Payment record found for this flight log.', 'error');          
+          return;
         }
-        this.computeKpis();
-        this.closeDialog();
-        this.showToast(`💳 Payment of ₹${this.selectedLog?.amount} received via ${modeLabel} for #${logRef}!`, 'success');
       },
       error: (err) => {
-        console.error('Failed to update payment status:', err);
-        // Optimistic UI fallback
-        if (this.selectedLog) {
-          this.selectedLog.paymentStatus = 'PAID';
-        }
-        this.computeKpis();
-        this.closeDialog();
-        this.showToast(`Payment marked as PAID via ${modeLabel} for #${logRef}.`, 'success');
+        console.error('Failed to fetch payment record:', err);
+        this.showToast('Failed to fetch payment record.', 'error');
+        return;
       }
     });
   }
