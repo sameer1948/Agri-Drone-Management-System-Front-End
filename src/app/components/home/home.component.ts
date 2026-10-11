@@ -11,7 +11,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgriDroneService } from '../../services/agri-drone.service';
-import { LogEntry, Rate } from '../../models/drone.model';
+import { Rate } from '../../models/rate.model';
+import { RateService } from '../../services/rate.service';
 
 interface SprayParticle {
   x: number;
@@ -45,6 +46,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private ctx!: CanvasRenderingContext2D;
   private animId: number | null = null;
   private api = inject(AgriDroneService);
+  private rateApi = inject(RateService);
 
   // Flight & Simulation State
   isSpraying = true;
@@ -92,14 +94,16 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   bookingSuccess = false;
 
   ngOnInit(): void {
-    this.api.getCurrentRate().subscribe({
+    this.rateApi.getCurrentRate().subscribe({
       next: (res) => {
         if (res && res.price) {
           this.currentRate = res;
           this.calculateEstimate();
         }
       },
-      error: () => console.warn('Using default rate ₹250/tank.')
+      error: () =>{
+        alert('Failed to fetch current rate. Using default rate ₹250/tank.');
+      } 
     });
     this.calculateEstimate();
   }

@@ -1,9 +1,10 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AgriDroneService } from '../../services/agri-drone.service';
-import { LogEntry, Payment, PaymentStatus } from '../../models/drone.model';
-
+import { LogEntry } from '../../models/log.model';
+import { Payment, PaymentStatus } from '../../models/payment.model';
+import { LogService } from '../../services/log.service';
+import { PaymentService } from '../../services/payment.service';
 type DialogMode = 'CONFIRM_MISSION' | 'RECEIVE_PAYMENT' | 'VIEW_DETAILS' | null;
 
 @Component({
@@ -14,7 +15,9 @@ type DialogMode = 'CONFIRM_MISSION' | 'RECEIVE_PAYMENT' | 'VIEW_DETAILS' | null;
   styleUrls: ['./logs.component.scss']
 })
 export class LogsComponent implements OnInit {
-  private api = inject(AgriDroneService);
+
+  private logApi = inject(LogService);
+  private paymentApi = inject(PaymentService);
 
   allLogs: LogEntry[] = [];
   filteredLogs: LogEntry[] = [];
@@ -66,7 +69,7 @@ export class LogsComponent implements OnInit {
 
   fetchLogs(): void {
     this.isLoading = true;
-    this.api.getLogs().subscribe({
+    this.logApi.getLogs().subscribe({
       next: (data) => {
         this.allLogs = data;
         this.fetchAssociatedPayments();
@@ -92,7 +95,7 @@ export class LogsComponent implements OnInit {
     }
 
     logIds.forEach(id => {
-      this.api.getPaymentByLogId(id).subscribe({
+      this.paymentApi.getPaymentByLogId(id).subscribe({
         next: (pay) => {
           if (pay && pay.logId) {
             this.paymentsMap.set(pay.logId, pay);
@@ -343,10 +346,10 @@ export class LogsComponent implements OnInit {
       pendingAmount: Number(this.selectedLog.amount)
     };
 
-    this.api.updateLog(logRef!, updatedLogEntry).subscribe({
+    this.logApi.updateLog(logRef!, updatedLogEntry).subscribe({
       next: (u) => {
         this.showToast(`✅ Log Id #${logRef} confirmed and Spraying Completed!`, 'success');
-        this.api.createPayment(paymentEntry).subscribe({
+        this.paymentApi.createPayment(paymentEntry).subscribe({
           next: (p) => {
             if (p?.logId) this.paymentsMap.set(p.logId, p);
             this.fetchLogs();
@@ -377,7 +380,7 @@ export class LogsComponent implements OnInit {
     const modeLabel = this.paymentMode === 'TRANSFER' ? 'UPI/Bank Transfer' : this.paymentMode;
     const incomingAmt = Number(this.enteredAmount);
 
-    this.api.getPaymentByLogId(logRef).subscribe({
+    this.paymentApi.getPaymentByLogId(logRef).subscribe({
       next: (paymentRecord) => {
         if (!paymentRecord || !paymentRecord.paymentId) {
           this.showToast('No payment record exists for this flight mission.', 'error');
@@ -401,13 +404,13 @@ export class LogsComponent implements OnInit {
           paymentNotes: this.paymentReferenceNote
         };
 
-        this.api.updatePayment(paymentRecord.paymentId, updatedPayment).subscribe({
+        this.paymentApi.updatePayment(paymentRecord.paymentId, updatedPayment).subscribe({
           next: (savedPayment) => {
             this.paymentsMap.set(logRef, savedPayment);
 
             if (newStatus === 'PAID') {
               this.selectedLog!.paymentStatus = 'PAID';
-              this.api.updateLog(logRef, this.selectedLog!).subscribe();
+              this.logApi.updateLog(logRef, this.selectedLog!).subscribe();
             }
 
             this.computeKpis();
@@ -443,22 +446,24 @@ export class LogsComponent implements OnInit {
     const pending = this.getPendingAmountForLog(log);
 
     const message = 
-`🌾 *AeroKrishi Drone Spraying - Payment Due Reminder* 🛸
-━━━━━━━━━━━━━━━━━━━━
-Dear *${log.cropOwnerName}*,
+    `*Sri Jagadeeswara AGRI Drone Spraying - Payment Received*
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Dear *${log.cropOwnerName}*,
 
-Your drone spraying service summary:
-📋 *Log Ref:* #${log.logId}
-📅 *Date of Confirmation:* ${log.createDate} at ${log.createTime}
-🌱 *Crop:* ${log.cropName} (${log.cropSize} Acres)
-🧪 *Tanks Consumed:* ${log.tankUsage} Tanks
-📍 *Village Plot:* ${log.cropVillage}
-💰 *Total Amount:* ₹${log.amount}
-⏳ *Pending Balance Due:* *₹${pending}*
-━━━━━━━━━━━━━━━━━━━━
-Kindly arrange the payment via Cash or UPI/Bank Transfer.
+    Your drone spraying service summary:
+    *Log Ref:* #${log.logId}
+    *Date of Confirmation:* ${log.createDate} at ${log.createTime}
+    *Crop:* ${log.cropName} (${log.cropSize} Acres)
+    *Tanks Consumed:* ${log.tankUsage} Tanks
+    *Village Plot:* ${log.cropVillage}
+    *Total Amount:* ₹${log.amount}
+    *Pending Balance Due:* *₹${pending}*
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Thank you for choosing AeroKrishi Autonomous Drone Systems!`;
+
+    *For any queries, contact us at: +91 - 9642343838, +91 - 9032343838*
+
+    Thank you for choosing _*Sri Jagadeeswara AGRI Drone Spraying!*_`;
 
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener,noreferrer');

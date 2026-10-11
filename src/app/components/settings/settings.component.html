@@ -1,0 +1,575 @@
+<div class="settings-container">
+  <!-- Toast Notification -->
+  <div *ngIf="toast.show" class="toast" [ngClass]="'toast-' + toast.type">
+    <span>{{ toast.message }}</span>
+    <button (click)="toast.show = false">✕</button>
+  </div>
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="title-wrap">
+      <h1>Operations Master Settings</h1>
+      <p>Configure spraying tariffs, drones units, and directory records</p>
+    </div>
+  </header>
+
+  <!-- Navigation Segment Tabs -->
+  <nav class="settings-nav-tabs">
+    <button 
+      class="tab-btn" 
+      [class.active]="currentTab === 'RATES'" 
+      (click)="setTab('RATES')">
+      <span class="material-icons">attach_money</span>
+      <span>Tariff & Rates</span>
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="currentTab === 'DRONES'" 
+      (click)="setTab('DRONES')">
+      <span class="material-icons">flight</span>
+      <span>Drones</span>
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="currentTab === 'VILLAGES'" 
+      (click)="setTab('VILLAGES')">
+      <span class="material-icons">location_city</span>
+      <span>Villages Directory</span>
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="currentTab === 'CROPS'" 
+      (click)="setTab('CROPS')">
+      <span class="material-icons">eco</span>
+      <span>Crops Registry</span>
+    </button>
+  </nav>
+
+  <!-- ================= SECTION 1: TARIFF & RATES ================= -->
+  <section *ngIf="currentTab === 'RATES'" class="tab-content-section">
+    <div class="rate-hero-card">
+      <div class="rate-info-side">
+        <div class="tariff-mat-card">
+          <!-- Header with Pulse Indicator -->
+          <div class="card-top-bar">
+            <div class="status-indicator">
+              <span class="live-dot"></span>
+              <span class="status-label">Active Operational Tariff</span>
+            </div>
+            <span class="material-icons card-corner-glyph">verified</span>
+          </div>
+
+          <!-- Main Value Display -->
+          <div class="tariff-content">
+            <span class="currency-symbol">₹</span>
+            <h2 class="rate-price">{{ currentRate.price | number:'1.2-2' }}</h2>
+            <span class="per-unit">/ tank</span>
+          </div>
+
+          <!-- Metadata Details -->
+          <div class="tariff-meta">
+            <div class="meta-row">
+              <span class="material-icons meta-icon">event_available</span>
+              <span class="meta-text">
+                Effective From: <strong>{{ currentRate.effectiveFrom | date:'medium' }}</strong>
+              </span>
+            </div>
+
+            <div class="meta-row note-row" *ngIf="currentRate.changeReason">
+              <span class="material-icons meta-icon">sticky_note_2</span>
+              <span class="meta-text">
+                Audit Note: <em>"{{ currentRate.changeReason }}"</em>
+              </span>
+            </div>
+          </div>
+
+          <!-- Card Action Button -->
+          <div class="card-action-bar">
+            <button 
+              type="button" 
+              class="btn-revise-tariff" 
+              (click)="openUpdateRateModal()">
+              <span class="material-icons">edit_calendar</span>
+              <span>Revise Operational Rate</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="rate-history-side">
+        <div class="history-head">
+          <h4>Tariff Revision Ledger</h4>
+          <button class="btn-sort-btn" (click)="toggleRateSort()">
+            Date: {{ rateSortDir === 'desc' ? 'Newest ▼' : 'Oldest ▲' }}
+          </button>
+        </div>
+
+        <div class="table-responsive" *ngIf="!isLoadingRates">
+          <table class="compact-table">
+            <thead>
+              <tr>
+                <th>Price / Tank</th>
+                <th>Status</th>
+                <th>Effective Window</th>
+                <th>Reason Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of pagedRates">
+                <td class="bold-price">₹{{ r.price }}</td>
+                <td>
+                  <span class="status-pill" [ngClass]="r.isActive ? 'active' : 'inactive'">
+                    {{ r.isActive ? 'ACTIVE' : 'ARCHIVED' }}
+                  </span>
+                </td>
+                <td class="date-col">
+                  <div>From: {{ r.effectiveFrom | date:'short' }}</div>
+                  <div *ngIf="r.effectiveTo" class="sub-date">To: {{ r.effectiveTo | date:'short' }}</div>
+                </td>
+                <td>{{ r.changeReason || '—' }}</td>
+              </tr>
+              <tr *ngIf="pagedRates.length === 0">
+                <td colspan="4" class="no-records">No past tariff revisions logged.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Rate Pagination -->
+        <div class="pagination-footer" *ngIf="filteredRates.length > 0">
+          <span>Showing {{ pagedRates.length }} of {{ filteredRates.length }} rates</span>
+          <div class="page-btns">
+            <button [disabled]="rateCurrentPage === 0" (click)="rateCurrentPage = rateCurrentPage - 1; applyRateSortAndPaging()">‹</button>
+            <button 
+              *ngFor="let p of getPages(rateTotalPages)" 
+              [class.active]="p === rateCurrentPage" 
+              (click)="rateCurrentPage = p; applyRateSortAndPaging()">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="rateCurrentPage >= rateTotalPages - 1" (click)="rateCurrentPage = rateCurrentPage + 1; applyRateSortAndPaging()">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 2: DRONE LIST ================= -->
+  <section *ngIf="currentTab === 'DRONES'" class="tab-content-section">
+    <div class="section-toolbar">
+      <h2>Registered Drone Units ({{ filteredDrones.length }})</h2>
+      <div class="toolbar-actions">
+        <div class="search-box">
+          <span class="material-icons search-glyph">search</span>
+          <input 
+            type="text" 
+            placeholder="Search by ID, model, owner, phone..." 
+            [(ngModel)]="droneSearch" 
+            (input)="applyDroneFilters()">
+        </div>
+        <div class="pill-filters">
+          <button [class.active]="droneStatusFilter === 'ALL'" (click)="droneStatusFilter = 'ALL'; applyDroneFilters()">All</button>
+          <button [class.active]="droneStatusFilter === 'ACTIVE'" (click)="droneStatusFilter = 'ACTIVE'; applyDroneFilters()">Active</button>
+          <button [class.active]="droneStatusFilter === 'INACTIVE'" (click)="droneStatusFilter = 'INACTIVE'; applyDroneFilters()">Inactive</button>
+        </div>
+        <button class="btn-primary-action" (click)="openCreateDroneModal()">
+          <span class="material-icons">add</span>
+          <span>Register Drone</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th (click)="setDroneSort('droneId')" class="sortable">
+                ID <span class="sort-glyph">{{ droneSortBy === 'droneId' ? (droneSortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="setDroneSort('droneName')" class="sortable">
+                Drone Model / Name <span class="sort-glyph">{{ droneSortBy === 'droneName' ? (droneSortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="setDroneSort('droneOwnerName')" class="sortable">
+                Pilot / Owner <span class="sort-glyph">{{ droneSortBy === 'droneOwnerName' ? (droneSortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th>Phone</th>
+              <th (click)="setDroneSort('droneStatus')" class="sortable text-center">Status</th>
+              <th class="text-center">Active Switch</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of pagedDrones" [class.inactive-row]="d.droneStatus === 'INACTIVE'">
+              <td><span class="badge-tag">#{{ d.droneId }}</span></td>
+              <td><strong>{{ d.droneName }}</strong></td>
+              <td>{{ d.droneOwnerName }}</td>
+              <td><a href="tel:{{ d.droneOwnerPhone }}" class="phone-link">📞 {{ d.droneOwnerPhone }}</a></td>
+              <td class="text-center">
+                <span class="status-pill" [ngClass]="d.droneStatus.toLowerCase()">{{ d.droneStatus }}</span>
+              </td>
+              <td class="text-center">
+                <label class="toggle-switch">
+                  <input type="checkbox" [checked]="d.droneStatus === 'ACTIVE'" (change)="toggleDroneStatus(d)">
+                  <span class="slider"></span>
+                </label>
+              </td>
+              <td class="text-center">
+                <div class="btn-group">
+                  <button class="btn-mat-act edit" (click)="openEditDroneModal(d)"><span class="material-icons">edit</span></button>
+                  <button class="btn-mat-act delete" (click)="deleteDrone(d.droneId)"><span class="material-icons">delete</span></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="pagedDrones.length === 0">
+              <td colspan="7" class="no-records">No drone units found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination-footer">
+        <div class="pagination-info">
+          Showing <strong>{{ (droneCurrentPage * dronePageSize) + 1 }}</strong> - 
+          <strong>{{ (droneCurrentPage * dronePageSize) + pagedDrones.length }}</strong> of 
+          <strong>{{ filteredDrones.length }}</strong> units
+        </div>
+        <div class="pagination-right">
+          <div class="page-size">
+            <label>Rows:</label>
+            <select [ngModel]="dronePageSize" (ngModelChange)="dronePageSize = $event; applyDroneFilters()">
+              <option *ngFor="let s of dronePageSizeOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+          <div class="page-btns">
+            <button [disabled]="droneCurrentPage === 0" (click)="droneCurrentPage = droneCurrentPage - 1; applyDroneFilters()">‹</button>
+            <button 
+              *ngFor="let p of getPages(droneTotalPages)" 
+              [class.active]="p === droneCurrentPage" 
+              (click)="droneCurrentPage = p; applyDroneFilters()">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="droneCurrentPage >= droneTotalPages - 1" (click)="droneCurrentPage = droneCurrentPage + 1; applyDroneFilters()">›</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 3: VILLAGES DIRECTORY ================= -->
+  <section *ngIf="currentTab === 'VILLAGES'" class="tab-content-section">
+    <div class="section-toolbar">
+      <h2>Villages Directory ({{ filteredVillages.length }})</h2>
+      <div class="toolbar-actions">
+        <div class="search-box">
+          <span class="material-icons search-glyph">search</span>
+          <input 
+            type="text" 
+            placeholder="Search village name..." 
+            [(ngModel)]="villageSearch" 
+            (input)="applyVillageFilters()">
+        </div>
+        <button class="btn-sort-btn" (click)="toggleVillageSort()">
+          Sort: {{ villageSortDir === 'asc' ? 'A-Z ▲' : 'Z-A ▼' }}
+        </button>
+        <button class="btn-primary-action" (click)="openCreateVillageModal()">
+          <span class="material-icons">add_location_alt</span>
+          <span>Add Village</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Village ID</th>
+              <th>Village / Farm Location Name</th>
+              <th class="text-center" style="width: 140px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let v of pagedVillages">
+              <td><span class="badge-tag">#{{ v.villageId }}</span></td>
+              <td><strong>📍 {{ v.name }}</strong></td>
+              <td class="text-center">
+                <div class="btn-group">
+                  <button class="btn-mat-act edit" (click)="openEditVillageModal(v)"><span class="material-icons">edit</span></button>
+                  <button class="btn-mat-act delete" (click)="deleteVillage(v.villageId)"><span class="material-icons">delete</span></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="pagedVillages.length === 0">
+              <td colspan="3" class="no-records">No villages found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination-footer">
+        <div class="pagination-info">
+          Showing <strong>{{ (villageCurrentPage * villagePageSize) + 1 }}</strong> - 
+          <strong>{{ (villageCurrentPage * villagePageSize) + pagedVillages.length }}</strong> of 
+          <strong>{{ filteredVillages.length }}</strong> records
+        </div>
+        <div class="pagination-right">
+          <div class="page-size">
+            <label>Rows:</label>
+            <select [ngModel]="villagePageSize" (ngModelChange)="villagePageSize = $event; applyVillageFilters()">
+              <option *ngFor="let s of villagePageSizeOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+          <div class="page-btns">
+            <button [disabled]="villageCurrentPage === 0" (click)="villageCurrentPage = villageCurrentPage - 1; applyVillageFilters()">‹</button>
+            <button 
+              *ngFor="let p of getPages(villageTotalPages)" 
+              [class.active]="p === villageCurrentPage" 
+              (click)="villageCurrentPage = p; applyVillageFilters()">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="villageCurrentPage >= villageTotalPages - 1" (click)="villageCurrentPage = villageCurrentPage + 1; applyVillageFilters()">›</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 4: CROPS REGISTRY ================= -->
+  <section *ngIf="currentTab === 'CROPS'" class="tab-content-section">
+    <div class="section-toolbar">
+      <h2>Crops Registry ({{ filteredCrops.length }})</h2>
+      <div class="toolbar-actions">
+        <div class="search-box">
+          <span class="material-icons search-glyph">search</span>
+          <input 
+            type="text" 
+            placeholder="Search crop name..." 
+            [(ngModel)]="cropSearch" 
+            (input)="applyCropFilters()">
+        </div>
+        <button class="btn-sort-btn" (click)="toggleCropSort()">
+          Sort: {{ cropSortDir === 'asc' ? 'A-Z ▲' : 'Z-A ▼' }}
+        </button>
+        <button class="btn-primary-action" (click)="openCreateCropModal()">
+          <span class="material-icons">grass</span>
+          <span>Add Crop</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Crop ID</th>
+              <th>Crop Name</th>
+              <th class="text-center" style="width: 140px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of pagedCrops">
+              <td><span class="badge-tag">#{{ c.cropId }}</span></td>
+              <td><strong>🌱 {{ c.name }}</strong></td>
+              <td class="text-center">
+                <div class="btn-group">
+                  <button class="btn-mat-act edit" (click)="openEditCropModal(c)"><span class="material-icons">edit</span></button>
+                  <button class="btn-mat-act delete" (click)="deleteCrop(c.cropId)"><span class="material-icons">delete</span></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="pagedCrops.length === 0">
+              <td colspan="3" class="no-records">No crops found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination-footer">
+        <div class="pagination-info">
+          Showing <strong>{{ (cropCurrentPage * cropPageSize) + 1 }}</strong> - 
+          <strong>{{ (cropCurrentPage * cropPageSize) + pagedCrops.length }}</strong> of 
+          <strong>{{ filteredCrops.length }}</strong> crops
+        </div>
+        <div class="pagination-right">
+          <div class="page-size">
+            <label>Rows:</label>
+            <select [ngModel]="cropPageSize" (ngModelChange)="cropPageSize = $event; applyCropFilters()">
+              <option *ngFor="let s of cropPageSizeOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+          <div class="page-btns">
+            <button [disabled]="cropCurrentPage === 0" (click)="cropCurrentPage = cropCurrentPage - 1; applyCropFilters()">‹</button>
+            <button 
+              *ngFor="let p of getPages(cropTotalPages)" 
+              [class.active]="p === cropCurrentPage" 
+              (click)="cropCurrentPage = p; applyCropFilters()">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="cropCurrentPage >= cropTotalPages - 1" (click)="cropCurrentPage = cropCurrentPage + 1; applyCropFilters()">›</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ================= DIALOG: DRONE (ADD / EDIT) ================= -->
+  <div class="modal-backdrop" *ngIf="activeModal === 'CREATE_DRONE' || activeModal === 'EDIT_DRONE'" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-title-wrap">
+          <span class="material-icons header-icon">{{ activeModal === 'CREATE_DRONE' ? 'add_circle' : 'edit' }}</span>
+          <div>
+            <h3>{{ activeModal === 'CREATE_DRONE' ? 'Register New Drone Unit' : 'Update Drone Specifications' }}</h3>
+            <p>Fleet tracking and pilot dispatch mapping</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <form [formGroup]="droneForm" (ngSubmit)="saveDrone()" class="modal-form">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="field">
+              <label>Drone Hardware ID <span class="req">*</span></label>
+              <input type="text" formControlName="droneId" placeholder="e.g. DRONE-001, AK-HEX-04">
+              <small class="err" *ngIf="droneForm.get('droneId')?.touched && droneForm.get('droneId')?.invalid">Alphanumeric ID required (3-20 chars)</small>
+            </div>
+            <div class="field">
+              <label>Drone Model / Machine Name <span class="req">*</span></label>
+              <input type="text" formControlName="droneName" placeholder="e.g. DJI Agras T40 / Hexa-Agri">
+              <small class="err" *ngIf="droneForm.get('droneName')?.touched && droneForm.get('droneName')?.invalid">Model name is required</small>
+            </div>
+            <div class="field">
+              <label>Drone Owner / Chief Pilot <span class="req">*</span></label>
+              <input type="text" formControlName="droneOwnerName" placeholder="e.g. Rajesh Sharma">
+              <small class="err" *ngIf="droneForm.get('droneOwnerName')?.touched && droneForm.get('droneOwnerName')?.invalid">Owner name is required</small>
+            </div>
+            <div class="field">
+              <label>Contact Mobile Number <span class="req">*</span></label>
+              <input type="tel" maxlength="10" formControlName="droneOwnerPhone" placeholder="9876543210">
+              <small class="err" *ngIf="droneForm.get('droneOwnerPhone')?.touched && droneForm.get('droneOwnerPhone')?.invalid">10-digit number required</small>
+            </div>
+            <div class="field full">
+              <label>Operational Status <span class="req">*</span></label>
+              <select formControlName="droneStatus">
+                <option value="ACTIVE">ACTIVE (Ready for missions)</option>
+                <option value="INACTIVE">INACTIVE (Maintenance / Grounded)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn-save" [disabled]="droneForm.invalid">
+            {{ activeModal === 'CREATE_DRONE' ? 'Register Drone' : 'Save Changes' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DIALOG: RATE (SET TARIFF) ================= -->
+  <div class="modal-backdrop" *ngIf="activeModal === 'UPDATE_RATE'" (click)="closeModal()">
+    <div class="modal-card modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header header-rate">
+        <div class="header-title-wrap">
+          <span class="material-icons header-icon">payments</span>
+          <div>
+            <h3>Revise Spraying Tariff</h3>
+            <p>Archive old tariff and create new active rate</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <form [formGroup]="rateForm" (ngSubmit)="saveRate()" class="modal-form">
+        <div class="modal-body">
+          <div class="field">
+            <label>New Price (₹ per tank) <span class="req">*</span></label>
+            <div class="input-with-symbol">
+              <span class="currency-symbol">₹</span>
+              <input type="number" step="1.00" formControlName="price" placeholder="250" class="num-field">
+            </div>
+          </div>
+          <div class="field" style="margin-top: 12px;">
+            <label>Revision Reason / Notes</label>
+            <input type="text" formControlName="changeReason" placeholder="e.g. Fuel hike, Seasonal discount">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn-save btn-rate" [disabled]="rateForm.invalid">Set Active Tariff</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DIALOG: VILLAGE (ADD / EDIT) ================= -->
+  <div class="modal-backdrop" *ngIf="activeModal === 'CREATE_VILLAGE' || activeModal === 'EDIT_VILLAGE'" (click)="closeModal()">
+    <div class="modal-card modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header header-village">
+        <div class="header-title-wrap">
+          <span class="material-icons header-icon">location_on</span>
+          <div>
+            <h3>{{ activeModal === 'CREATE_VILLAGE' ? 'Add Village' : 'Edit Village' }}</h3>
+            <p>Unique village / sector name check</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <form [formGroup]="villageForm" (ngSubmit)="saveVillage()" class="modal-form">
+        <div class="modal-body">
+          <div class="field">
+            <label>Village Name <span class="req">*</span></label>
+            <input type="text" formControlName="name" placeholder="e.g. Rampur, Plot Sector 4">
+            <small class="err" *ngIf="villageForm.get('name')?.touched && villageForm.get('name')?.invalid">
+              Village name must be at least 2 characters.
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn-save btn-village" [disabled]="villageForm.invalid">
+            {{ activeModal === 'CREATE_VILLAGE' ? 'Save Village' : 'Update Village' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DIALOG: CROP (ADD / EDIT) ================= -->
+  <div class="modal-backdrop" *ngIf="activeModal === 'CREATE_CROP' || activeModal === 'EDIT_CROP'" (click)="closeModal()">
+    <div class="modal-card modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header header-crop">
+        <div class="header-title-wrap">
+          <span class="material-icons header-icon">spa</span>
+          <div>
+            <h3>{{ activeModal === 'CREATE_CROP' ? 'Register Crop' : 'Edit Crop' }}</h3>
+            <p>Unique agricultural crop name check</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <form [formGroup]="cropForm" (ngSubmit)="saveCrop()" class="modal-form">
+        <div class="modal-body">
+          <div class="field">
+            <label>Crop Name <span class="req">*</span></label>
+            <input type="text" formControlName="name" placeholder="e.g. Paddy / Rice, Cotton, Sugarcane">
+            <small class="err" *ngIf="cropForm.get('name')?.touched && cropForm.get('name')?.invalid">
+              Crop name must be at least 2 characters.
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn-save btn-crop" [disabled]="cropForm.invalid">
+            {{ activeModal === 'CREATE_CROP' ? 'Save Crop' : 'Update Crop' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

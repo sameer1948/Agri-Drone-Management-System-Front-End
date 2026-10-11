@@ -1,8 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
-import { AgriDroneService } from '../../services/agri-drone.service';
-import { Repair } from '../../models/drone.model';
+import { Repair } from '../../models/repair.model';
+import { RepairService } from '../../services/repair.service';
 type DialogMode = 'VIEW' | 'CREATE' | 'EDIT' | null;
 
 @Component({
@@ -13,7 +13,8 @@ type DialogMode = 'VIEW' | 'CREATE' | 'EDIT' | null;
   styleUrls: ['./maintenance.component.scss']
 })
 export class MaintenanceComponent implements OnInit {
-  private api = inject(AgriDroneService);
+  
+  private repairApi = inject(RepairService);
   private fb = inject(FormBuilder);
 
   repairs: Repair[] = [];
@@ -73,7 +74,7 @@ export class MaintenanceComponent implements OnInit {
 
   fetchRepairs(): void {
     this.isLoading = true;
-    this.api.getRepairs().subscribe({
+    this.repairApi.getRepairs().subscribe({
       next: (data) => {
         this.repairs = data || [];
         this.computeKpis();
@@ -219,7 +220,7 @@ export class MaintenanceComponent implements OnInit {
     };
 
     if (this.activeDialogMode === 'EDIT' && payload.repairId) {
-      this.api.updateRepair(payload.repairId, payload).subscribe({
+      this.repairApi.updateRepair(payload.repairId, payload).subscribe({
         next: () => {
           this.closeModal();
           this.fetchRepairs();
@@ -231,7 +232,7 @@ export class MaintenanceComponent implements OnInit {
         }
       });
     } else {
-      this.api.createRepair(payload).subscribe({
+      this.repairApi.createRepair(payload).subscribe({
         next: () => {
           this.closeModal();
           this.fetchRepairs();
@@ -251,7 +252,7 @@ export class MaintenanceComponent implements OnInit {
 
     if (!confirm(`Are you sure you want to delete Repair entry #${repairId}?`)) return;
 
-    this.api.deleteRepair(repairId).subscribe({
+    this.repairApi.deleteRepair(repairId).subscribe({
       next: () => {
         this.fetchRepairs();
         this.showToast(`Repair #${repairId} deleted.`, 'success');
@@ -268,4 +269,5 @@ export class MaintenanceComponent implements OnInit {
     this.toast = { show: true, message, type };
     this.toastTimer = setTimeout(() => (this.toast.show = false), 4000);
   }
+  
 }

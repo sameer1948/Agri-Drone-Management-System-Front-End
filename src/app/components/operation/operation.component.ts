@@ -2,8 +2,19 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AgriDroneService } from '../../services/agri-drone.service';
-import { Booking, BookingStatus, Drone, LogEntry, PageResponse, PaymentStatus, Rate } from '../../models/drone.model';
+import { RateService } from '../../services/rate.service';
+import { Rate } from '../../models/rate.model';
+import { DroneService } from '../../services/drone.service';
+import { Booking, BookingStatus } from '../../models/booking.model';
+import { Drone, PageResponse } from '../../models/drone.model';
+import { LogEntry } from '../../models/log.model';
+import { PaymentStatus } from '../../models/payment.model';
+import { BookingService } from '../../services/booking.service';
+import { LogService } from '../../services/log.service';
+import { Crop } from '../../models/crop.model';
+import { Village } from '../../models/village.model';
+import { CropService } from '../../services/crop.service';
+import { VillageService } from '../../services/village.service';
 
 type ActionType = 'CONFIRM' | 'CANCEL' | 'DELETE' | null;
 
@@ -15,17 +26,23 @@ type ActionType = 'CONFIRM' | 'CANCEL' | 'DELETE' | null;
   styleUrls: ['./operation.component.scss']
 })
 export class OperationComponent implements OnInit {
-  
-  private api = inject(AgriDroneService);
-  private fb = inject(FormBuilder);
 
-  // Simulated Admin Auth State (Default: true for testing)
-  isAdminLoggedIn: boolean = true;
+  private droneApi = inject(DroneService);
+  private bookingApi = inject(BookingService);
+  private logApi = inject(LogService);
+  private rateApi = inject(RateService);
+  private villageApi = inject(VillageService);
+  private cropApi = inject(CropService);
+  private fb = inject(FormBuilder);
 
   // Data & State
   bookings: Booking[] = [];
-  currentRate: Rate = { price: 250 };
+  currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
   isLoading = false;
+
+  // Master Data Lists from DB
+  cropsList: Crop[] = [];
+  villagesList: Village[] = [];
 
   // Metrics
   totalCount = 0;
@@ -37,16 +54,6 @@ export class OperationComponent implements OnInit {
   searchTerm = '';
   selectedStatusFilter = 'ALL';
   selectedCropFilter = 'ALL';
-
-  cropsList = [
-    { name: 'Paddy / Rice', factor: 2.0 },
-    { name: 'Cotton', factor: 2.5 },
-    { name: 'Sugarcane', factor: 3.0 },
-    { name: 'Wheat', factor: 1.8 },
-    { name: 'Maize / Corn', factor: 2.0 },
-    { name: 'Chilli / Spices', factor: 2.5 },
-    { name: 'Soybean', factor: 1.8 }
-  ];
 
   // Pagination & Sorting
   currentPage = 0;
@@ -62,6 +69,8 @@ export class OperationComponent implements OnInit {
 
   // --- Modals State ---
   isEditModalOpen = false;
+  isDetailsModalOpen = false;
+  selectedBookingDetails: Booking | null = null;
   editForm!: FormGroup;
   editingBooking: Booking | null = null;
   computedAmount = 0;
@@ -77,9 +86,22 @@ export class OperationComponent implements OnInit {
 
   ngOnInit(): void {
     this.initEditForm();
-    this.loadDrones(); 
-    this.api.getCurrentRate().subscribe(r => { if (r?.price) this.currentRate = r; });
+    this.loadDrones();
+    this.loadMasterData();
+    this.rateApi.getCurrentRate().subscribe(r => { if (r?.price) this.currentRate = r; });
     this.loadData();
+  }
+
+  loadMasterData(): void {
+    this.cropApi.getCrops().subscribe({
+      next: (data) => (this.cropsList = data || []),
+      error: (err) => console.error('Failed to load crops:', err)
+    });
+
+    this.villageApi.getVillages().subscribe({
+      next: (data) => (this.villagesList = data || []),
+      error: (err) => console.error('Failed to load villages:', err)
+    });
   }
 
   private initEditForm(): void {
@@ -90,7 +112,7 @@ export class OperationComponent implements OnInit {
       cropOwnerName: ['', [Validators.required, Validators.minLength(3)]],
       cropOwnerPhone: ['', [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]],
       cropVillage: ['', Validators.required],
-      cropSize: [null, [Validators.required, Validators.min(0.25), Validators.max(200)]],
+      cropSize: [null, [Validators.required, Validators.min(1), Validators.pattern('^[1-9][0-9]*$')]],
       bookingStatus: ['PENDING', Validators.required],
       bookingNotes: ['']
     });
@@ -102,16 +124,16 @@ export class OperationComponent implements OnInit {
       }
     });
 
+    // 1 Acre = 1 Tank
     this.editForm.get('cropSize')?.valueChanges.subscribe(() => this.recalcEditAmount());
-    this.editForm.get('cropName')?.valueChanges.subscribe(() => this.recalcEditAmount());
   }
 
   loadDrones(): void {
-    this.api.getDrones().subscribe({
+    this.droneApi.getDrones().subscribe({
       next: (drones) => {
-        this.availableDrones = drones;
-        if (drones.length > 0) {
-          this.selectedDroneId = drones[0].droneId;
+        this.availableDrones = (drones || []).filter(d => d.droneStatus === 'ACTIVE');
+        if (this.availableDrones.length > 0) {
+          this.selectedDroneId = this.availableDrones[0].droneId;
         }
       },
       error: (err) => console.error('Failed to load drones', err)
@@ -119,12 +141,10 @@ export class OperationComponent implements OnInit {
   }
 
   loadData(page: number = this.currentPage): void {
-    if (!this.isAdminLoggedIn) return;
-
     this.isLoading = true;
     this.currentPage = page;
 
-    this.api.getFilteredBookings({
+    this.bookingApi.getFilteredBookings({
       status: this.selectedStatusFilter,
       crop: this.selectedCropFilter,
       search: this.searchTerm,
@@ -134,7 +154,7 @@ export class OperationComponent implements OnInit {
       sortDir: this.sortDir
     }).subscribe({
       next: (res: PageResponse<Booking>) => {
-        this.bookings = res.content;
+        this.bookings = res.content || [];
         this.totalElements = res.totalElements;
         this.totalPages = res.totalPages;
         this.computeMetrics(res.content, res.totalElements);
@@ -154,7 +174,6 @@ export class OperationComponent implements OnInit {
     this.totalRevenue = pageItems.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   }
 
-  // Sorting
   toggleSort(column: string): void {
     if (this.sortBy === column) {
       this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
@@ -165,8 +184,27 @@ export class OperationComponent implements OnInit {
     this.loadData(0);
   }
 
+  // --- Row Click Details Dialog ---
+  openRowDetails(booking: Booking): void {
+    this.selectedBookingDetails = booking;
+    this.isDetailsModalOpen = true;
+  }
+
+  closeRowDetails(): void {
+    this.selectedBookingDetails = null;
+    this.isDetailsModalOpen = false;
+  }
+
+  confirmFromDetails(): void {
+    if (!this.selectedBookingDetails) return;
+    const b = this.selectedBookingDetails;
+    this.closeRowDetails();
+    this.openActionDialog('CONFIRM', b);
+  }
+
   // --- Edit Modal Handlers ---
-  openEditModal(booking: Booking): void {
+  openEditModal(booking: Booking, event?: Event): void {
+    if (event) event.stopPropagation();
     this.editingBooking = booking;
     this.editForm.patchValue({
       bookingDate: booking.bookingDate,
@@ -189,10 +227,8 @@ export class OperationComponent implements OnInit {
   }
 
   recalcEditAmount(): void {
-    const crop = this.editForm.get('cropName')?.value;
-    const size = parseFloat(this.editForm.get('cropSize')?.value) || 0;
-    const factor = this.cropsList.find(c => c.name === crop)?.factor || 2.0;
-    this.computedAmount = Math.round(size * factor * this.currentRate.price);
+    const size = parseInt(this.editForm.get('cropSize')?.value, 10) || 0;
+    this.computedAmount = size * (this.currentRate.price || 250);
   }
 
   submitEditForm(): void {
@@ -207,14 +243,14 @@ export class OperationComponent implements OnInit {
       cropOwnerName: f.cropOwnerName,
       cropOwnerPhone: f.cropOwnerPhone,
       cropVillage: f.cropVillage,
-      cropSize: parseFloat(f.cropSize),
+      cropSize: parseInt(f.cropSize, 10),
       bookingStatus: f.bookingStatus,
       bookingNotes: f.bookingNotes,
       price: this.currentRate.price,
       amount: this.computedAmount
     };
 
-    this.api.updateBooking(this.editingBooking.bookingId, payload).subscribe({
+    this.bookingApi.updateBooking(this.editingBooking.bookingId, payload).subscribe({
       next: () => {
         this.closeEditModal();
         this.loadData(this.currentPage);
@@ -224,14 +260,15 @@ export class OperationComponent implements OnInit {
     });
   }
 
-  // --- Confirmation Action Dialog (Confirm, Cancel, Delete) ---
-  openActionDialog(type: ActionType, booking: Booking): void {
+  // --- Confirmation Action Dialog (Confirm / Cancel) ---
+  openActionDialog(type: ActionType, booking: Booking, event?: Event): void {
+    if (event) event.stopPropagation();
     this.activeActionType = type;
     this.targetBooking = booking;
     if (this.availableDrones.length > 0 && !this.selectedDroneId) {
       this.selectedDroneId = this.availableDrones[0].droneId;
     }
-  this.isConfirmActionDialogOpen = true;
+    this.isConfirmActionDialogOpen = true;
   }
 
   closeActionDialog(): void {
@@ -245,7 +282,6 @@ export class OperationComponent implements OnInit {
     const id = this.targetBooking.bookingId;
 
     if (this.activeActionType === 'CONFIRM') {
-      // 1. Validate drone selection
       if (!this.selectedDroneId) {
         this.showToast('Please select a drone to assign to this mission.', 'error');
         return;
@@ -253,7 +289,6 @@ export class OperationComponent implements OnInit {
 
       const assignedDrone = this.availableDrones.find(d => d.droneId === this.selectedDroneId);
       const droneName = assignedDrone ? assignedDrone.droneName : 'Standard Agri Drone';
-      console.log(this.targetBooking);
 
       const newLogEntry: LogEntry = {
         bookingId: this.targetBooking.bookingId!,
@@ -265,66 +300,34 @@ export class OperationComponent implements OnInit {
         cropOwnerPhone: this.targetBooking.cropOwnerPhone,
         cropSize: this.targetBooking.cropSize,
         cropVillage: this.targetBooking.cropVillage,
-        tankUsage: Math.round(this.targetBooking.cropSize * 2.0), // TODO Example calculation
+        tankUsage: this.targetBooking.cropSize, // 1 acre = 1 tank
         amount: this.targetBooking.amount,
         activityStatus: 'CONFIRMED' as 'CONFIRMED' | 'COMPLETED' | 'CANCELLED',
         paymentStatus: 'PENDING' as PaymentStatus       
       };
 
-      const updatedBooking : Booking = {
-        bookingId: this.targetBooking.bookingId,
-        bookingDate: this.targetBooking.bookingDate || new Date().toISOString().split('T')[0],
-        bookingDay: this.targetBooking.bookingDay,
-        cropName: this.targetBooking.cropName,
-        cropOwnerName: this.targetBooking.cropOwnerName,
-        cropOwnerPhone: this.targetBooking.cropOwnerPhone,
-        cropSize: this.targetBooking.cropSize,
-        cropVillage: this.targetBooking.cropVillage,
-        price: this.targetBooking.price,
-        amount: this.targetBooking.amount,
-        bookingNotes: this.targetBooking.bookingNotes,
+      const updatedBooking: Booking = {
+        ...this.targetBooking,
         bookingStatus: 'CONFIRMED' as BookingStatus
-      }
-      this.api.createLog(newLogEntry).subscribe({
+      };
+
+      this.logApi.createLog(newLogEntry).subscribe({
         next: () => {
-          this.api.updateBooking(id, updatedBooking).subscribe({
+          this.bookingApi.updateBooking(id, updatedBooking).subscribe({
             next: () => {
               this.closeActionDialog();
               this.loadData(this.currentPage);
               this.showToast(`✅ Booking #${id} confirmed and logged with Drone ${droneName} (${this.selectedDroneId})!`, 'success');
             },
-            error: () => this.showToast('Cancellation failed.', 'error')
+            error: () => this.showToast('Confirmation failed.', 'error')
           });
         },
-        error: () => {
-          this.showToast('Failed to create log entry.', 'error');
-        }
-      }
-    );
-
-      //2. Call backend confirm-and-log API
-      // this.api.confirmAndLogBooking(id, this.selectedDroneId, droneName).subscribe({
-      //   next: () => {
-      //     this.closeActionDialog();
-      //     this.loadData(this.currentPage);
-      //     this.showToast(`✅ Booking #${id} confirmed and logged with Drone ${droneName} (${this.selectedDroneId})!`, 'success');
-      //   },
-      //   error: () => this.showToast('Confirmation & logging failed.', 'error')
-      // });
-
-    } else if (this.activeActionType === 'DELETE') {
-      this.api.deleteBooking(id).subscribe({
-        next: () => {
-          this.closeActionDialog();
-          this.loadData(this.currentPage);
-          this.showToast(`Booking #${id} deleted from database.`, 'success');
-        },
-        error: () => this.showToast('Delete operation failed.', 'error')
+        error: () => this.showToast('Failed to create log entry.', 'error')
       });
 
     } else if (this.activeActionType === 'CANCEL') {
       const updated: Booking = { ...this.targetBooking, bookingStatus: 'CANCELLED' };
-      this.api.updateBooking(id, updated).subscribe({
+      this.bookingApi.updateBooking(id, updated).subscribe({
         next: () => {
           this.closeActionDialog();
           this.loadData(this.currentPage);
@@ -335,50 +338,65 @@ export class OperationComponent implements OnInit {
     }
   }
 
-  sendNotification(booking: Booking): void {
+  // --- Dynamic WhatsApp Notification ---
+  sendNotification(booking: Booking, event?: Event): void {
+    if (event) event.stopPropagation();
+
     if (!booking.cropOwnerPhone) {
       this.showToast('Farmer mobile number is missing.', 'error');
       return;
     }
 
-    // Sanitize the phone number
     let cleanPhone = booking.cropOwnerPhone.replace(/[^0-9]/g, '');
-    if (cleanPhone.length === 10) {
-      cleanPhone = '91' + cleanPhone;
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+    let statusHeader = '';
+    let statusNotice = '';
+
+    if (booking.bookingStatus === 'CONFIRMED') {
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Dispatch Confirmed*';
+      statusNotice = 'Our certified drone pilot and autonomous unit are assigned to your field. Please ensure water supply is accessible near the plot.';
+    } else if (booking.bookingStatus === 'CANCELLED') {
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Service Cancelled*';
+      statusNotice = 'This scheduled spraying mission has been cancelled. For re-scheduling or inquiries, please contact.';
+    } else {
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Booking Received*';
+      statusNotice = 'Your request has been received and is pending pilot dispatch verification.';
     }
 
-    // Trimmed message lines to avoid wide spaces on WhatsApp
     const messageLines = [
-      '🌾 *AeroKrishi Drone Spraying Mission Details* 🛸',
+      statusHeader,
       '━━━━━━━━━━━━━━━━━━━━',
-      `Dear *${booking.cropOwnerName}*, your drone spraying schedule is confirmed:`,
+      `Dear *${booking.cropOwnerName}*, details of your drone mission:`,
       '',
-      `📅 *Date:* ${booking.bookingDate} (${booking.bookingDay})`,
-      `🌱 *Crop:* ${booking.cropName}`,
-      `📐 *Field Area:* ${booking.cropSize} Acres`,
-      `📍 *Village / Location:* ${booking.cropVillage}`,
-      `💰 *Rate per Tank:* ₹${booking.price}`,
-      `💵 *Estimated Total:* ₹${booking.amount}`,
-      `📊 *Status:* *${booking.bookingStatus}*`,
-      booking.bookingNotes ? `📝 *Notes:* ${booking.bookingNotes}` : '',
+      `*Date:* ${booking.bookingDate} (${booking.bookingDay})`,
+      `*Crop:* ${booking.cropName}`,
+      `*Field Area:* ${booking.cropSize} Acres (${booking.cropSize} Tanks)`,
+      `*Village / Location:* ${booking.cropVillage}`,
+      `*Rate per Tank:* ₹${booking.price}`,
+      `*Estimated Total:* ₹${booking.amount}`,
+      `*Status:* *${booking.bookingStatus}*`,
+      booking.bookingNotes ? `📝 *Notes:* ${booking.bookingNotes}\n` : '',
       '━━━━━━━━━━━━━━━━━━━━',
-      'Our certified drone pilot will arrive with the spray payload. Please keep field water access available.',
+      statusNotice,
       '',
-      '_AeroKrishi Autonomous Fleet Systems_'
+      '*For any queries, contact us at:* +91 9642343838, +91 9032343838',
+      '' ,
+      '_*Sri Jagadeeswara AGRI Drone Spraying!*_'
     ].filter(line => line !== null && line !== undefined);
 
     const encodedMessage = encodeURIComponent(messageLines.join('\n'));
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+    const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
 
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    this.showToast(`Opening WhatsApp chat for ${booking.cropOwnerName}...`, 'success');
+    // Target a named window to redirect/reuse an existing WhatsApp Web tab
+    window.open(whatsappUrl, 'whatsapp_window');
+    this.showToast(`Redirecting WhatsApp chat for ${booking.cropOwnerName}...`, 'success');
   }
 
-  // Toast
   showToast(message: string, type: 'success' | 'error' = 'success'): void {
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toast = { show: true, message, type };
-    this.toastTimer = setTimeout(() => this.toast.show = false, 10000);
+    this.toastTimer = setTimeout(() => (this.toast.show = false), 4000);
   }
 
   getPageNumbers(): number[] {

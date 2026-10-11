@@ -19,15 +19,6 @@
     </div>
 
     <div class="header-right">
-      <button 
-        type="button" 
-        class="btn-auth-toggle" 
-        [class.logged-in]="isLoggedIn" 
-        (click)="toggleLogin()">
-        <span class="dot"></span>
-        {{ isLoggedIn ? 'Admin (Logged In)' : 'Guest (Logged Out)' }}
-      </button>
-
       <button class="btn-primary-action" (click)="openCreateModal()">
         <span class="material-icons btn-icon">add</span>
         <span>Book a Service</span>
@@ -38,10 +29,7 @@
   <!-- Rate & Info Strip -->
   <div class="rate-strip">
     <div class="rate-info">
-      <span>Active Drone Spray Rate: <strong>₹{{ currentRate.price }}</strong> per tank</span>
-    </div>
-    <div class="auth-notice" *ngIf="!isLoggedIn">
-      🔒 <em>Viewing mode: Log in as administrator to edit or delete bookings.</em>
+      <span>Active Drone Spray Rate: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</span>
     </div>
   </div>
 
@@ -127,7 +115,6 @@
             <th class="sortable" (click)="setSort('bookingStatus')">
               Status <span class="sort-indicator">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
-            <th *ngIf="isLoggedIn" class="text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -148,7 +135,7 @@
             <td>
               <span class="crop-tag">{{ b.cropName }}</span>
             </td>
-            <td><strong>{{ b.cropSize | number:'1.2-2' }}</strong> ac</td>
+            <td><strong>{{ b.cropSize }}</strong> ac</td>
             <td>{{ b.cropVillage }}</td>
             <td>₹{{ b.price }}</td>
             <td class="amount-col">₹{{ b.amount }}</td>
@@ -156,26 +143,6 @@
               <span class="status-badge" [ngClass]="b.bookingStatus?.toLowerCase()">
                 {{ b.bookingStatus }}
               </span>
-            </td>
-
-            <!-- ================= MAT ICON BUTTON ACTIONS ================= -->
-            <td *ngIf="isLoggedIn" class="actions-col text-center">
-              <div class="action-btn-group">
-                <button 
-                  type="button"
-                  class="mat-icon-btn edit-btn" 
-                  title="Edit Booking Parameters" 
-                  (click)="openEditModal(b)">
-                  <span class="material-icons">edit</span>
-                </button>
-                <button 
-                  type="button"
-                  class="mat-icon-btn delete-btn" 
-                  title="Delete Booking" 
-                  (click)="deleteBooking(b.bookingId)">
-                  <span class="material-icons">delete</span>
-                </button>
-              </div>
             </td>
           </tr>
         </tbody>
@@ -226,15 +193,15 @@
     </div>
   </div>
 
-  <!-- ================= POPUP MODAL DIALOG ================= -->
+  <!-- ================= CREATE BOOKING MODAL ================= -->
   <div class="modal-backdrop" *ngIf="isModalOpen" (click)="closeModal()">
     <div class="modal-card" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="material-icons modal-icon">flight_takeoff</span>
           <div>
-            <h3>{{ isEditMode ? 'Update Drone Spray Booking' : 'Book a Drone Spraying Service' }}</h3>
-            <p>{{ isEditMode ? 'Modify mission parameters below' : 'Fill details to schedule pilot dispatch' }}</p>
+            <h3>Book a Drone Spraying Service</h3>
+            <p>Fill mission parameters to schedule dispatch</p>
           </div>
         </div>
         <button class="btn-close-modal" (click)="closeModal()">✕</button>
@@ -242,19 +209,36 @@
 
       <form [formGroup]="bookingForm" (ngSubmit)="saveBooking()" class="modal-form">
         <div class="modal-grid">
+
+          <!-- Dynamic Crop Dropdown -->
           <div class="field-wrap">
             <label>Crop Name <span class="req">*</span></label>
             <select formControlName="cropName">
-              <option value="" disabled>Select crop type</option>
+              <option value="" disabled>-- Select Crop from Registry --</option>
               <option *ngFor="let c of crops" [value]="c.name">
-                {{ c.name }} (~{{ c.factor }} tanks/acre)
+                🌱 {{ c.name }}
               </option>
             </select>
             <small class="err" *ngIf="bookingForm.get('cropName')?.touched && bookingForm.get('cropName')?.invalid">
               Please choose a crop
             </small>
           </div>
+
+          <!-- Dynamic Village Dropdown -->
+          <div class="field-wrap">
+            <label>Crop Village / Farm Location <span class="req">*</span></label>
+            <select formControlName="cropVillage">
+              <option value="" disabled>-- Select Village from Registry --</option>
+              <option *ngFor="let v of villages" [value]="v.name">
+                📍 {{ v.name }}
+              </option>
+            </select>
+            <small class="err" *ngIf="bookingForm.get('cropVillage')?.touched && bookingForm.get('cropVillage')?.invalid">
+              Village location is required
+            </small>
+          </div>
           
+          <!-- Farmer Name -->
           <div class="field-wrap">
             <label>Crop Owner / Farmer Name <span class="req">*</span></label>
             <input type="text" formControlName="cropOwnerName" placeholder="e.g. Ramesh Patel">
@@ -263,57 +247,58 @@
             </small>
           </div>
 
-          <div class="field-wrap">
-            <label>Crop Village / Farm Location <span class="req">*</span></label>
-            <input type="text" formControlName="cropVillage" placeholder="e.g. Rampur, Plot Sector 12">
-            <small class="err" *ngIf="bookingForm.get('cropVillage')?.touched && bookingForm.get('cropVillage')?.invalid">
-              Village location is required
-            </small>
-          </div>
-
+          <!-- Contact Phone -->
           <div class="field-wrap">
             <label>Mobile Number (10 Digits) <span class="req">*</span></label>
             <input type="tel" maxlength="10" formControlName="cropOwnerPhone" placeholder="9876543210">
             <small class="err" *ngIf="bookingForm.get('cropOwnerPhone')?.touched && bookingForm.get('cropOwnerPhone')?.invalid">
-              Valid 10-digit number starting 6-9 required
+              Valid 10-digit number starting with 6-9 required
             </small>
           </div>
 
+          <!-- Whole Integer Acres (1, 2, 3...) -->
           <div class="field-wrap">
-            <label>Land Size (Acres) <span class="req">*</span></label>
+            <label>Land Size (Acres / Tanks) <span class="req">*</span></label>
             <input 
               type="number" 
-              step="0.01" 
+              step="1" 
               formControlName="cropSize" 
-              placeholder="e.g. 4.50"
-              (blur)="onAcresBlur()">
-            <small class="hint">Allowed up to 2 decimal points (e.g. 3.25)</small>
+              placeholder="e.g. 5">
+            <small class="hint">1 Acre = 1 Drone Tank (Whole numbers only)</small>
             <small class="err" *ngIf="bookingForm.get('cropSize')?.touched && bookingForm.get('cropSize')?.invalid">
-              Enter valid size (0.25 - 200)
+              Enter valid whole acres (min 1, no decimals)
             </small>
           </div>
 
+          <!-- Booking Date (Past Dates Permitted) -->
           <div class="field-wrap">
             <label>Booking Date <span class="req">*</span></label>
-            <input type="date" [min]="todayDate" formControlName="bookingDate">
+            <input type="date" formControlName="bookingDate">
+            <small class="hint">Past and present dates allowed</small>
             <small class="err" *ngIf="bookingForm.get('bookingDate')?.touched && bookingForm.get('bookingDate')?.invalid">
               Valid date is required
             </small>
           </div>
 
+          <!-- Booking Notes -->
           <div class="field-wrap full-span">
             <label>Booking Notes</label>
-            <textarea formControlName="bookingNotes" placeholder="Any additional details about the booking..."></textarea>
+            <textarea formControlName="bookingNotes" placeholder="Any additional instructions or field notes..."></textarea>
           </div>
         </div>
 
+        <!-- Calculated Cost Banner -->
         <div class="price-calculator-strip">
           <div class="price-cell">
             <span class="lbl">Unit Rate</span>
             <span class="val">₹{{ currentRate.price }} / tank</span>
           </div>
           <div class="price-cell">
-            <span class="lbl">Calculated Amount</span>
+            <span class="lbl">Tanks Needed</span>
+            <span class="val">{{ bookingForm.get('cropSize')?.value || 0 }} Tanks</span>
+          </div>
+          <div class="price-cell">
+            <span class="lbl">Estimated Total</span>
             <span class="val highlight">₹{{ calculatedAmount }}</span>
           </div>
         </div>
@@ -321,7 +306,7 @@
         <div class="modal-footer">
           <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
           <button type="submit" class="btn-save" [disabled]="bookingForm.invalid">
-            {{ isEditMode ? 'Update Mission' : 'Confirm & Schedule Booking' }}
+            Confirm & Schedule Booking
           </button>
         </div>
       </form>
