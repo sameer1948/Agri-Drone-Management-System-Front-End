@@ -10,17 +10,17 @@
   <header class="export-header">
     <div class="title-wrap">
       <div class="brand-pill">
-        <span class="material-icons pill-icon">table_view</span>
-        <span>Data Governance & Analytics</span>
+        <span class="material-icons pill-icon">account_balance_wallet</span>
+        <span>Financial Ledger & Data Governance</span>
       </div>
-      <h1>Central Data Export & Excel Reports</h1>
-      <p>Download full operational records, billing registers, flight logs, and master metadata</p>
+      <h1>Central Data Export & Payment Reports</h1>
+      <p>Download comprehensive payment ledgers, receivables, spraying mission logs, and master registries</p>
     </div>
 
     <div class="header-actions">
       <button class="btn-sync" (click)="fetchAllData()" [disabled]="isLoading">
         <span class="material-icons" [class.spinning]="isLoading">sync</span>
-        <span>{{ isLoading ? 'Pulling DB...' : 'Sync Data' }}</span>
+        <span>{{ isLoading ? 'Pulling DB...' : 'Sync Database' }}</span>
       </button>
 
       <button class="btn-master-download" (click)="exportCompleteMasterReport()" [disabled]="isLoading || isExporting">
@@ -30,8 +30,30 @@
     </div>
   </header>
 
-  <!-- Live Database Telemetry Counters -->
+  <!-- Live Financial & Operational Telemetry Counters -->
   <section class="metrics-grid">
+    <div class="metric-card hero-revenue">
+      <div class="icon-circle paid-icon">
+        <span class="material-icons">payments</span>
+      </div>
+      <div class="metric-text">
+        <span class="lbl">Collected Payments</span>
+        <strong class="val">₹{{ totalCollectedAmount | number }}</strong>
+        <small class="sub">Settled Invoices ({{ payments.length }} records)</small>
+      </div>
+    </div>
+
+    <div class="metric-card hero-pending">
+      <div class="icon-circle pending-icon">
+        <span class="material-icons">pending_actions</span>
+      </div>
+      <div class="metric-text">
+        <span class="lbl">Pending Receivables</span>
+        <strong class="val highlight-pending">₹{{ totalPendingAmount | number }}</strong>
+        <small class="sub">Outstanding Farmer Balance</small>
+      </div>
+    </div>
+
     <div class="metric-card">
       <div class="icon-circle flight">
         <span class="material-icons">flight_takeoff</span>
@@ -39,7 +61,7 @@
       <div class="metric-text">
         <span class="lbl">Completed Missions</span>
         <strong class="val">{{ logs.length }}</strong>
-        <small class="sub">Across {{ totalAcreageSprayed }} Acres</small>
+        <small class="sub">Across {{ totalAcreageSprayed }} Sprayed Acres</small>
       </div>
     </div>
 
@@ -50,29 +72,7 @@
       <div class="metric-text">
         <span class="lbl">Total Bookings</span>
         <strong class="val">{{ bookings.length }}</strong>
-        <small class="sub">Scheduled Missions</small>
-      </div>
-    </div>
-
-    <div class="metric-card">
-      <div class="icon-circle drone">
-        <span class="material-icons">precision_manufacturing</span>
-      </div>
-      <div class="metric-text">
-        <span class="lbl">Registered Drones</span>
-        <strong class="val">{{ drones.length }} Units</strong>
-        <small class="sub">Hardware Fleet</small>
-      </div>
-    </div>
-
-    <div class="metric-card">
-      <div class="icon-circle revenue">
-        <span class="material-icons">account_balance_wallet</span>
-      </div>
-      <div class="metric-text">
-        <span class="lbl">Gross Volume</span>
-        <strong class="val">₹{{ totalRevenueBilled | number }}</strong>
-        <small class="sub">Billed Spray Operations</small>
+        <small class="sub">Gross Value: ₹{{ totalBilledAmount | number }}</small>
       </div>
     </div>
   </section>
@@ -81,60 +81,78 @@
   <section class="reports-section">
     <div class="section-heading">
       <h2>Module-Specific Excel Exports</h2>
-      <p>Download structured spreadsheets for individual operational divisions</p>
+      <p>Download structured spreadsheets for individual operational and financial divisions</p>
     </div>
 
     <div class="cards-grid">
-      <!-- 1. Flight Mission Logs -->
+      <!-- 1. PRIMARY: Payments & Financial Settlements -->
+      <div class="export-card featured-payment-card">
+        <div class="featured-badge">
+          <span class="material-icons">star</span>
+          <span>Primary Financial Ledger</span>
+        </div>
+        <div class="card-top">
+          <span class="material-icons card-icon pay-icon">account_balance_wallet</span>
+          <span class="count-tag">{{ payments.length }} payments</span>
+        </div>
+        <h3>Payments & Billing Ledger</h3>
+        <p>Complete payment audit records, transaction modes (Cash / UPI), pending balances, collection dates, and farmer references.</p>
+        <button class="btn-card-export btn-pay-export" (click)="exportSingleSheet('PAYMENTS')" [disabled]="isLoading">
+          <span class="material-icons icon-sm">download</span>
+          <span>Download Payments (.xlsx)</span>
+        </button>
+      </div>
+
+      <!-- 2. Flight Mission Logs -->
       <div class="export-card">
         <div class="card-top">
           <span class="material-icons card-icon logs-icon">receipt_long</span>
           <span class="count-tag">{{ logs.length }} records</span>
         </div>
         <h3>Spraying Mission Logs</h3>
-        <p>Complete execution history, chemical tank counts, timestamps, pilot dispatch notes, and completion stamps.</p>
+        <p>Execution history, chemical tank consumption, acres sprayed, pilot timestamps, and mission status.</p>
         <button class="btn-card-export" (click)="exportSingleSheet('LOGS')" [disabled]="isLoading">
           <span class="material-icons icon-sm">download</span>
           <span>Download Logs (.xlsx)</span>
         </button>
       </div>
 
-      <!-- 2. Customer Bookings -->
+      <!-- 3. Customer Bookings -->
       <div class="export-card">
         <div class="card-top">
           <span class="material-icons card-icon bookings-icon">edit_calendar</span>
           <span class="count-tag">{{ bookings.length }} records</span>
         </div>
         <h3>Bookings & Schedules</h3>
-        <p>Farmer contact phone numbers, farm location sectors, scheduled dates, and mission approval status.</p>
+        <p>Farmer contacts, village plot locations, scheduled dates, and preliminary cost calculations.</p>
         <button class="btn-card-export" (click)="exportSingleSheet('BOOKINGS')" [disabled]="isLoading">
           <span class="material-icons icon-sm">download</span>
           <span>Download Bookings (.xlsx)</span>
         </button>
       </div>
 
-      <!-- 3. Drone Hardware Registry -->
+      <!-- 4. Drone Hardware Registry -->
       <div class="export-card">
         <div class="card-top">
           <span class="material-icons card-icon drones-icon">flight</span>
           <span class="count-tag">{{ drones.length }} units</span>
         </div>
         <h3>Drone Fleet Specifications</h3>
-        <p>Unit hardware IDs, machine models, owner pilots, operational status (Active/Inactive), and contact records.</p>
+        <p>Hardware IDs, models, owner chief pilots, contact numbers, and operational readiness status.</p>
         <button class="btn-card-export" (click)="exportSingleSheet('DRONES')" [disabled]="isLoading">
           <span class="material-icons icon-sm">download</span>
           <span>Download Fleet (.xlsx)</span>
         </button>
       </div>
 
-      <!-- 4. Master Directory Metadata -->
+      <!-- 5. Master Directory Metadata -->
       <div class="export-card">
         <div class="card-top">
           <span class="material-icons card-icon meta-icon">dataset</span>
           <span class="count-tag">{{ villages.length + crops.length }} items</span>
         </div>
         <h3>Villages & Crops Registry</h3>
-        <p>Unique database directories of serviced villages, farm sectors, and registered regional crop varieties.</p>
+        <p>Master directory of serviced agricultural villages and regional crop varieties.</p>
         <button class="btn-card-export" (click)="exportSingleSheet('METADATA')" [disabled]="isLoading">
           <span class="material-icons icon-sm">download</span>
           <span>Download Directory (.xlsx)</span>
@@ -150,7 +168,7 @@
         <div class="preview-title">
           <span class="material-icons">preview</span>
           <div>
-            <h3>Database Snapshot Preview</h3>
+            <h3>Database Snapshot & Workbook Hierarchy</h3>
             <p>Verified synchronization with Spring Boot database on port 8080</p>
           </div>
         </div>
@@ -168,43 +186,68 @@
               <th>Total Entries</th>
               <th>Status</th>
               <th>Format</th>
-              <th>Destination Tab</th>
+              <th>Destination Excel Tab</th>
             </tr>
           </thead>
           <tbody>
+            <tr class="featured-preview-row">
+              <td>
+                <div class="division-title">
+                  <span class="material-icons icon-sm" style="color: #059669;">payments</span>
+                  <strong>Payments & Billing Ledger</strong>
+                </div>
+              </td>
+              <td>{{ payments.length }} transactions</td>
+              <td><span class="status-chip active">Ready</span></td>
+              <td>OpenXML (.xlsx)</td>
+              <td><code>Payments & Ledger</code> (Tab #1)</td>
+            </tr>
             <tr>
-              <td><strong>Flight Mission Logs</strong></td>
+              <td>
+                <div class="division-title">
+                  <span class="material-icons icon-sm" style="color: #0284c7;">receipt_long</span>
+                  <strong>Flight Mission Logs</strong>
+                </div>
+              </td>
               <td>{{ logs.length }}</td>
               <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML Spreadsheet</td>
+              <td>OpenXML (.xlsx)</td>
               <td><code>Mission Logs</code></td>
             </tr>
             <tr>
-              <td><strong>Customer Bookings</strong></td>
+              <td>
+                <div class="division-title">
+                  <span class="material-icons icon-sm" style="color: #7c3aed;">calendar_month</span>
+                  <strong>Customer Bookings</strong>
+                </div>
+              </td>
               <td>{{ bookings.length }}</td>
               <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML Spreadsheet</td>
+              <td>OpenXML (.xlsx)</td>
               <td><code>Bookings</code></td>
             </tr>
             <tr>
-              <td><strong>Drone Fleet Registry</strong></td>
+              <td>
+                <div class="division-title">
+                  <span class="material-icons icon-sm" style="color: #475569;">flight</span>
+                  <strong>Drone Fleet Registry</strong>
+                </div>
+              </td>
               <td>{{ drones.length }}</td>
               <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML Spreadsheet</td>
+              <td>OpenXML (.xlsx)</td>
               <td><code>Drone Fleet</code></td>
             </tr>
             <tr>
-              <td><strong>Historical Spray Tariffs</strong></td>
-              <td>{{ rates.length }}</td>
-              <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML Spreadsheet</td>
-              <td><code>Tariff History</code></td>
-            </tr>
-            <tr>
-              <td><strong>Villages & Crops Metadata</strong></td>
+              <td>
+                <div class="division-title">
+                  <span class="material-icons icon-sm" style="color: #ea580c;">dataset</span>
+                  <strong>Villages & Crops Metadata</strong>
+                </div>
+              </td>
               <td>{{ villages.length }} villages, {{ crops.length }} crops</td>
               <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML Spreadsheet</td>
+              <td>OpenXML (.xlsx)</td>
               <td><code>Villages Directory</code>, <code>Crops Registry</code></td>
             </tr>
           </tbody>

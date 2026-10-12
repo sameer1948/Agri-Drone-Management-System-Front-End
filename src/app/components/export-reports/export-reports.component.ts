@@ -1,7 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import * as saveAs from 'file-saver';
 
@@ -10,14 +11,14 @@ import { LogService } from '../../services/log.service';
 import { DroneService } from '../../services/drone.service';
 import { PaymentService } from '../../services/payment.service';
 import { RateService } from '../../services/rate.service';
+import { VillageService } from '../../services/village.service';
+import { CropService } from '../../services/crop.service';
 
 import { Booking } from '../../models/booking.model';
 import { LogEntry } from '../../models/log.model';
 import { Drone } from '../../models/drone.model';
 import { Payment } from '../../models/payment.model';
 import { Rate } from '../../models/rate.model';
-import { VillageService } from '../../services/village.service';
-import { CropService } from '../../services/crop.service';
 import { Crop } from '../../models/crop.model';
 import { Village } from '../../models/village.model';
 
@@ -38,13 +39,16 @@ export class ExportReportsComponent implements OnInit {
   private rateApi = inject(RateService);
 
   // Data Stores
-  bookings: Booking[] = [];
-  logs: LogEntry[] = [];
-  drones: Drone[] = [];
   payments: Payment[] = [];
+  logs: LogEntry[] = [];
+  bookings: Booking[] = [];
+  drones: Drone[] = [];
   crops: Crop[] = [];
   villages: Village[] = [];
   rates: Rate[] = [];
+
+  // Quick lookup map: logId -> LogEntry
+  logMap: Map<number, LogEntry> = new Map();
 
   isLoading = false;
   isExporting = false;
@@ -62,12 +66,12 @@ export class ExportReportsComponent implements OnInit {
     this.isLoading = true;
 
     forkJoin({
-      bookings: this.bookingApi.getBookings(0, 1000, 'bookingId', 'desc'),
-      logs: this.logApi.getLogs(),
-      drones: this.droneApi.getDrones(),
-      crops: this.cropApi.getCrops(),
-      villages: this.villageApi.getVillages(),
-      rates: this.rateApi.getAllRateHistory()
+      bookings: this.bookingApi.getBookings(0, 1000, 'bookingId', 'desc').pipe(catchError(() => of([]))),
+      logs: this.logApi.getLogs().pipe(catchError(() => of([]))),
+      drones: this.droneApi.getDrones().pipe(catchError(() => of([]))),
+      crops: this.cropApi.getCrops().pipe(catchError(() => of([]))),
+      villages: this.villageApi.getVillages().pipe(catchError(() => of([]))),
+      rates: this.rateApi.getAllRateHistory().pipe(catchError(() => of([])))
     }).subscribe({
       next: (results) => {
         this.bookings = (results.bookings as any)?.content || results.bookings || [];
@@ -76,9 +80,15 @@ export class ExportReportsComponent implements OnInit {
         this.crops = results.crops || [];
         this.villages = results.villages || [];
         this.rates = results.rates || [];
-        this.lastSyncedAt = new Date();
-        this.isLoading = false;
-        this.showToast('All operational records synced successfully!', 'success');
+
+        // Build log map for cross-referencing payments
+        this.logMap.clear();
+        this.logs.forEach(l => {
+          if (l.logId) this.logMap.set(l.logId, l);
+        });
+
+        // Fetch associated payments for all logged missions
+        this.fetchPaymentsData();
       },
       error: (err) => {
         console.error('Error fetching datasets:', err);
@@ -88,10 +98,57 @@ export class ExportReportsComponent implements OnInit {
     });
   }
 
+  private fetchPaymentsData(): void {
+    const completedLogIds = this.logs
+      .filter(l => l.logId != null)
+      .map(l => l.logId as number);
+
+    if (completedLogIds.length === 0) {
+      this.payments = [];
+      this.lastSyncedAt = new Date();
+      this.isLoading = false;
+      return;
+    }
+
+    const paymentCalls = completedLogIds.map(id =>
+      this.paymentApi.getPaymentByLogId(id).pipe(catchError(() => of(null)))
+    );
+
+    forkJoin(paymentCalls).subscribe({
+      next: (payResults) => {
+        this.payments = payResults.filter((p): p is Payment => p !== null && p.paymentId != null);
+        this.lastSyncedAt = new Date();
+        this.isLoading = false;
+        this.showToast('All operational and payment ledgers synced!', 'success');
+      },
+      error: () => {
+        this.isLoading = false;
+        this.showToast('Synced data with partial payment logs.', 'error');
+      }
+    });
+  }
+
+  // ================= FINANCIAL METRIC HELPERS =================
+  get totalCollectedAmount(): number {
+    return this.payments.reduce((sum, p) => sum + (Number(p.paidAmount) || 0), 0);
+  }
+
+  get totalPendingAmount(): number {
+    return this.payments.reduce((sum, p) => sum + (Number(p.pendingAmount) || 0), 0);
+  }
+
+  get totalBilledAmount(): number {
+    return this.payments.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
+  }
+
+  get totalAcreageSprayed(): number {
+    return this.logs.reduce((sum, l) => sum + (Number(l.cropSize) || 0), 0);
+  }
+
   // ================= EXCEL EXPORT LOGIC =================
 
   /**
-   * Generates a Master Excel Workbook with separate tabs for each entity.
+   * Generates a Master Excel Workbook with Payments as the primary tab.
    */
   exportCompleteMasterReport(): void {
     if (this.isLoading) return;
@@ -100,28 +157,34 @@ export class ExportReportsComponent implements OnInit {
     try {
       const wb: XLSX.WorkBook = XLSX.utils.book_new();
 
-      // 1. Mission Logs Tab
+      // 1. PRIMARY TAB: Payments & Financial Ledger
+      const paymentsData = this.buildPaymentsExportRows();
+      const wsPayments = XLSX.utils.json_to_sheet(paymentsData);
+      XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments & Ledger');
+
+      // 2. TAB: Spraying Mission Logs
       const logsData = this.logs.map(l => ({
         'Log ID': l.logId,
         'Booking ID': l.bookingId,
         'Drone ID': l.droneId,
-        'Date': l.createDate,
+        'Mission Date': l.createDate,
         'Time': l.createTime,
         'Farmer Name': l.cropOwnerName,
         'Phone': l.cropOwnerPhone,
         'Crop': l.cropName,
         'Village': l.cropVillage,
-        'Acres (Area)': l.cropSize,
+        'Acres': l.cropSize,
         'Tanks Used': l.tankUsage,
         'Bill Amount (₹)': l.amount,
-        'Mission Status': l.activityStatus,
+        'Activity Status': l.activityStatus,
+        'Payment Status': l.paymentStatus,
         'Completed Date': l.completeDate || '—',
         'Completed Time': l.completeTime || '—'
       }));
       const wsLogs = XLSX.utils.json_to_sheet(logsData);
       XLSX.utils.book_append_sheet(wb, wsLogs, 'Mission Logs');
 
-      // 2. Bookings Tab
+      // 3. TAB: Customer Bookings
       const bookingsData = this.bookings.map(b => ({
         'Booking ID': b.bookingId,
         'Scheduled Date': b.bookingDate,
@@ -131,52 +194,50 @@ export class ExportReportsComponent implements OnInit {
         'Village Location': b.cropVillage,
         'Crop': b.cropName,
         'Land Size (Ac)': b.cropSize,
-        'Unit Rate (₹/Tank)': b.price,
-        'Total Amount (₹)': b.amount,
+        'Tariff (₹/Tank)': b.price,
+        'Estimated Amount (₹)': b.amount,
         'Status': b.bookingStatus,
         'Notes': b.bookingNotes || '—'
       }));
       const wsBookings = XLSX.utils.json_to_sheet(bookingsData);
       XLSX.utils.book_append_sheet(wb, wsBookings, 'Bookings');
 
-      // 3. Drone Fleet Registry Tab
+      // 4. TAB: Drone Fleet Registry
       const dronesData = this.drones.map(d => ({
         'Hardware ID': d.droneId,
-        'Model / Name': d.droneName,
-        'Owner / Pilot': d.droneOwnerName,
+        'Drone Model': d.droneName,
+        'Chief Pilot / Owner': d.droneOwnerName,
         'Contact Phone': d.droneOwnerPhone,
         'Operational Status': d.droneStatus
       }));
       const wsDrones = XLSX.utils.json_to_sheet(dronesData);
       XLSX.utils.book_append_sheet(wb, wsDrones, 'Drone Fleet');
 
-      // 4. Tariff & Rate History Tab
+      // 5. TAB: Tariff Rate History
       const ratesData = this.rates.map(r => ({
         'Rate ID': r.rateId,
         'Price / Tank (₹)': r.price,
-        'Active': r.isActive ? 'YES' : 'NO',
+        'Is Active': r.isActive ? 'YES' : 'NO',
         'Effective From': r.effectiveFrom,
         'Effective To': r.effectiveTo || 'CURRENT',
-        'Change Reason': r.changeReason || '—'
+        'Revision Reason': r.changeReason || '—'
       }));
       const wsRates = XLSX.utils.json_to_sheet(ratesData);
       XLSX.utils.book_append_sheet(wb, wsRates, 'Tariff History');
 
-      // 5. Master Metadata (Villages & Crops)
-      const villageData = this.villages.map(v => ({ 'Village ID': v.villageId, 'Name': v.name }));
-      const cropData = this.crops.map(c => ({ 'Crop ID': c.cropId, 'Name': c.name }));
-      const wsVillages = XLSX.utils.json_to_sheet(villageData);
-      const wsCrops = XLSX.utils.json_to_sheet(cropData);
-      XLSX.utils.book_append_sheet(wb, wsVillages, 'Villages Directory');
-      XLSX.utils.book_append_sheet(wb, wsCrops, 'Crops Registry');
+      // 6. TAB: Master Metadata (Villages & Crops)
+      const villageData = this.villages.map(v => ({ 'Village ID': v.villageId, 'Village Name': v.name }));
+      const cropData = this.crops.map(c => ({ 'Crop ID': c.cropId, 'Crop Name': c.name }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(villageData), 'Villages Directory');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cropData), 'Crops Registry');
 
-      // Generate buffer and trigger download
+      // Generate & Trigger Download
       const excelBuffer: any = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const filename = `Sri_Jagadeeswara_AgriDrone_Master_Report_${this.getDateStamp()}.xlsx`;
+      const filename = `Sri_Jagadeeswara_AgriDrone_Master_Financial_Report_${this.getDateStamp()}.xlsx`;
       this.saveAsExcelFile(excelBuffer, filename);
 
       this.isExporting = false;
-      this.showToast('📊 Complete Master Excel Report downloaded!', 'success');
+      this.showToast('📊 Complete Master Financial Report downloaded!', 'success');
     } catch (error) {
       console.error('Export error:', error);
       this.isExporting = false;
@@ -185,26 +246,16 @@ export class ExportReportsComponent implements OnInit {
   }
 
   /**
-   * Export individual sheet
+   * Export single sheet
    */
-  exportSingleSheet(type: 'BOOKINGS' | 'LOGS' | 'DRONES' | 'METADATA'): void {
+  exportSingleSheet(type: 'PAYMENTS' | 'LOGS' | 'BOOKINGS' | 'DRONES' | 'METADATA'): void {
     const wb: XLSX.WorkBook = XLSX.utils.book_new();
     let filename = '';
 
-    if (type === 'BOOKINGS') {
-      const data = this.bookings.map(b => ({
-        'ID': b.bookingId,
-        'Date': b.bookingDate,
-        'Farmer': b.cropOwnerName,
-        'Phone': b.cropOwnerPhone,
-        'Crop': b.cropName,
-        'Acres': b.cropSize,
-        'Village': b.cropVillage,
-        'Amount': b.amount,
-        'Status': b.bookingStatus
-      }));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Bookings');
-      filename = `Bookings_${this.getDateStamp()}.xlsx`;
+    if (type === 'PAYMENTS') {
+      const data = this.buildPaymentsExportRows();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Payments Ledger');
+      filename = `Payment_Settlements_Ledger_${this.getDateStamp()}.xlsx`;
     } else if (type === 'LOGS') {
       const data = this.logs.map(l => ({
         'Log ID': l.logId,
@@ -215,10 +266,25 @@ export class ExportReportsComponent implements OnInit {
         'Acres': l.cropSize,
         'Tanks': l.tankUsage,
         'Total (₹)': l.amount,
-        'Status': l.activityStatus
+        'Status': l.activityStatus,
+        'Payment': l.paymentStatus
       }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Logs');
       filename = `Mission_Logs_${this.getDateStamp()}.xlsx`;
+    } else if (type === 'BOOKINGS') {
+      const data = this.bookings.map(b => ({
+        'ID': b.bookingId,
+        'Date': b.bookingDate,
+        'Farmer': b.cropOwnerName,
+        'Phone': b.cropOwnerPhone,
+        'Crop': b.cropName,
+        'Acres': b.cropSize,
+        'Village': b.cropVillage,
+        'Amount (₹)': b.amount,
+        'Status': b.bookingStatus
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Bookings');
+      filename = `Customer_Bookings_${this.getDateStamp()}.xlsx`;
     } else if (type === 'DRONES') {
       const data = this.drones.map(d => ({
         'ID': d.droneId,
@@ -240,6 +306,32 @@ export class ExportReportsComponent implements OnInit {
     this.showToast(`Downloaded ${filename}`, 'success');
   }
 
+  /**
+   * Helper that joins payments with their parent mission logs
+   */
+  private buildPaymentsExportRows(): any[] {
+    return this.payments.map(p => {
+      const log = p.logId ? this.logMap.get(p.logId) : null;
+      return {
+        'Payment ID': p.paymentId,
+        'Log Ref ID': p.logId,
+        'Farmer Name': log?.cropOwnerName || '—',
+        'Contact Phone': log?.cropOwnerPhone || '—',
+        'Farm Village': log?.cropVillage || '—',
+        'Crop Type': log?.cropName || '—',
+        'Sprayed Acres': log?.cropSize ?? '—',
+        'Total Invoice (₹)': p.totalAmount,
+        'Paid Amount (₹)': p.paidAmount,
+        'Pending Due (₹)': p.pendingAmount,
+        'Settlement Status': p.paymentStatus,
+        'Payment Mode': p.paymentType || 'CASH',
+        'Initial Payment Date': p.paymentDate || '—',
+        'Last Payment Date': p.lastPaymentDate || '—',
+        'Payment Audit Notes': p.paymentNotes ? p.paymentNotes.replace(/[\n\r]+/g, ' ').trim() : '—'
+      };
+    });
+  }
+
   private saveAsExcelFile(buffer: any, fileName: string): void {
     const EXCEL_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8';
     const data: Blob = new Blob([buffer], { type: EXCEL_TYPE });
@@ -249,15 +341,6 @@ export class ExportReportsComponent implements OnInit {
   private getDateStamp(): string {
     const d = new Date();
     return `${d.getFullYear()}_${('0' + (d.getMonth() + 1)).slice(-2)}_${('0' + d.getDate()).slice(-2)}`;
-  }
-
-  // Calculation helpers for UI
-  get totalAcreageSprayed(): number {
-    return this.logs.reduce((sum, l) => sum + (Number(l.cropSize) || 0), 0);
-  }
-
-  get totalRevenueBilled(): number {
-    return this.logs.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
   }
 
   showToast(message: string, type: 'success' | 'error' = 'success'): void {
