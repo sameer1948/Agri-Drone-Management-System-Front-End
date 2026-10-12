@@ -7,19 +7,19 @@
       <!-- Flight Telemetry HUD Overlay -->
       <div class="flight-hud">
         <div class="hud-item">
-          <span class="label">SPEED</span>
+          <span class="label">FLIGHT SPEED</span>
           <span class="val">{{ groundSpeed }} km/h</span>
         </div>
         <div class="hud-item">
-          <span class="label">FLOW RATE</span>
+          <span class="label">DISCHARGE FLOW</span>
           <span class="val">{{ flowRate }} L/min</span>
         </div>
         <div class="hud-item">
-          <span class="label">TANK</span>
+          <span class="label">PAYLOAD TANK</span>
           <span class="val" [class.low]="tankPercent < 20">{{ tankPercent }}%</span>
         </div>
         <div class="hud-item">
-          <span class="label">BATTERY</span>
+          <span class="label">LIPO POWER</span>
           <span class="val">{{ batteryPercent }}%</span>
         </div>
       </div>
@@ -27,7 +27,7 @@
       <!-- Simulation Flight Controls -->
       <div class="canvas-controls">
         <button class="btn-spray" [class.active]="isSpraying" (click)="toggleSpray()">
-          {{ isSpraying ? '⏹ Pause Sprayer' : '▶ Activate Sprayer' }}
+          {{ isSpraying ? '⏹ Pause Spraying' : '▶ Activate Sprayer' }}
         </button>
 
         <div class="fluid-selector">
@@ -41,82 +41,154 @@
             Micronutrients
           </button>
         </div>
-        <span class="click-hint">Click anywhere on the field to fly drone</span>
+        <span class="click-hint">Click anywhere on the field to direct the drone flight path</span>
       </div>
     </div>
 
     <div class="hero-content">
-      <div class="badge">Sri Jagadeeswara AGRI Drone Spraying & Farming</div>
-      <h1>Next-Gen Drone Crop Spraying & Management</h1>
+      <div class="badge">Sri Jagadeeswara AGRI Drone Spraying</div>
+      <h1>Next-Gen Autonomous Aerial Crop Protection</h1>
       <p>
-        Deliver microscopic fertilizer and micronutrient mist with micron-level accuracy.
-        Reduce chemical wastage by 40%, save 90% water, and complete 30 acres in a single day.
+        Delivering microscopic fertilizer and pesticide droplets with precision atomization.
+        Save 90% water, prevent chemical wastage, eliminate manual field exposure, and spray up to 30 acres daily across East Godavari.
       </p>
       <div class="hero-stats">
-        <div><strong>10x</strong> Faster than manual spray</div>
-        <div><strong>₹{{ currentRate.price }}</strong> Flat rate per Acer / tank</div>
-        <div><strong>100%</strong> Uniform canopy penetration</div>
+        <div>
+          <strong>10x Faster</strong>
+          <span>Than manual knapsack spraying</span>
+        </div>
+        <div>
+          <strong>₹{{ currentRate.price }} / Tank</strong>
+          <span>Flat Tariff (1 Acre = 1 Drone Tank)</span>
+        </div>
+        <div>
+          <strong>100% Canopy</strong>
+          <span>Root-to-tip atomized penetration</span>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Precision Calculator & Booking Grid -->
-  <!-- <section class="booking-section"> -->
+  <!-- Interactive Calculator & Direct Booking Action Grid -->
+  <section class="calculator-action-grid">
+    <!-- Precision Calculator Card -->
     <div class="card calc-card">
-      <h2>Fertilizer & Cost Calculator</h2>
-      <p class="subtitle">Based on active price: ₹{{ currentRate.price }} per drone payload tank</p>
+      <div class="card-header">
+        <span class="material-icons card-icon">calculate</span>
+        <div>
+          <h2>Precision Fertilizer & Cost Estimator</h2>
+          <p class="subtitle">Based on operational tariff: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</p>
+        </div>
+      </div>
 
+      <!-- Target Crop from Backend Database -->
       <div class="form-group">
-        <label>Target Crop</label>
+        <label>
+          <span class="material-icons label-icon">eco</span>
+          Target Crop from Database Registry
+        </label>
         <select [(ngModel)]="estCrop" (change)="calculateEstimate()">
-          <option value="Paddy">Paddy / Rice</option>
-          <option value="Cotton">Cotton</option>
-          <option value="Sugarcane">Sugarcane</option>
-          <option value="Wheat">Wheat</option>
+          <option value="" disabled>-- Select Registered Crop --</option>
+          <option *ngFor="let c of cropsList" [value]="c.name">🌱 {{ c.name }}</option>
         </select>
       </div>
 
+      <!-- Land Size Slider & Integer Number Input -->
       <div class="form-group">
-        <label>Land Size (Acres): <strong>{{ estAcres }} Acres</strong></label>
-        <input type="range" min="1" max="50" [(ngModel)]="estAcres" (input)="calculateEstimate()">
+        <div class="slider-label-row">
+          <label>
+            <span class="material-icons label-icon">straighten</span>
+            Field Area (Acres):
+          </label>
+          <strong class="acre-indicator">{{ estAcres }} Acres</strong>
+        </div>
+        <input 
+          type="range" 
+          min="1" 
+          max="50" 
+          step="1" 
+          [(ngModel)]="estAcres" 
+          (input)="calculateEstimate()">
+        <small class="hint-text">1 Acre requires exactly 1 full drone payload tank load.</small>
       </div>
 
+      <!-- Live Calculation Breakdown -->
       <div class="summary-box">
         <div class="res-row">
-          <span>Required Tank Loads:</span>
-          <strong>{{ estTanks }} Tanks (10L each)</strong>
+          <span>Required Payload Tanks:</span>
+          <strong>{{ estTanks }} Tanks (10L–16L each)</strong>
+        </div>
+        <div class="res-row">
+          <span>Active Tariff per Tank:</span>
+          <strong>₹{{ currentRate.price }}</strong>
         </div>
         <div class="res-row total">
-          <span>Estimated Spray Cost:</span>
-          <strong class="price">₹{{ estCost }}</strong>
+          <span>Estimated Spraying Fee:</span>
+          <strong class="price">₹{{ estCost | number:'1.0-0' }}</strong>
         </div>
+      </div>
+
+      <div class="calc-action-row">
+        <a routerLink="/booking" class="btn-book-direct">
+          <span class="material-icons">calendar_month</span>
+          <span>Schedule This Mission Now</span>
+        </a>
       </div>
     </div>
 
-    <!-- Quick Dispatch Form -->
-    <!-- <div class="card dispatch-card">
-      <h2>Schedule Drone Spraying</h2>
-      <p class="subtitle">Dispatches a drone pilot directly to your farm plot</p>
-
-      <div class="input-grid">
-        <input type="text" placeholder="Farmer / Owner Name" [(ngModel)]="booking.farmerName">
-        <input type="text" placeholder="Mobile Phone (+91)" [(ngModel)]="booking.phone">
-        <input type="text" placeholder="Village / Plot Location" [(ngModel)]="booking.village">
-        <select [(ngModel)]="booking.crop">
-          <option value="Paddy">Paddy</option>
-          <option value="Cotton">Cotton</option>
-          <option value="Sugarcane">Sugarcane</option>
-          <option value="Wheat">Wheat</option>
-        </select>
+    <!-- Pilot & Station Contact Card -->
+    <div class="card pilot-station-card">
+      <div class="card-header">
+        <span class="material-icons card-icon">contact_phone</span>
+        <div>
+          <h2>Certified Pilot & Dispatch Station</h2>
+          <p class="subtitle">Direct dispatch for Peda Rayavaram & neighboring mandals</p>
+        </div>
       </div>
 
-      <div><p>Need add the Date time for scheduling</p></div>
-      <div class="action-footer">
-        <button class="btn-book" (click)="submitQuickBooking()">
-          Confirm & Log Mission
-        </button>
-        <span *ngIf="bookingSuccess" class="success-msg">Mission Logged Successfully into Spring Boot Database!</span>
+      <div class="pilot-profile-strip">
+        <div class="pilot-avatar">
+          <span class="material-icons">flight_takeoff</span>
+        </div>
+        <div class="pilot-info">
+          <span class="role-tag">CERTIFIED DRONE PILOT</span>
+          <h3>V. Jagadeesh</h3>
+          <p>Autonomous Drone Spray Specialist & Operator</p>
+        </div>
       </div>
-    </div> -->
-  <!-- </section> -->
+
+      <div class="station-details-list">
+        <div class="station-row">
+          <span class="material-icons icon-station">location_on</span>
+          <div>
+            <strong>Operational Base Address:</strong>
+            <p>Near Hanuman Statue, Opposite Old Panchayat, Peda Rayavaram, Rangampeta Mandal, East Godavari, AP - 533291</p>
+          </div>
+        </div>
+
+        <div class="station-row">
+          <span class="material-icons icon-station">phone_in_talk</span>
+          <div>
+            <strong>Direct Pilot Phone:</strong>
+            <p>
+              <a href="tel:9642343838" class="hotline-link">9642343838</a> &nbsp;|&nbsp; 
+              <a href="tel:9032343838" class="hotline-link">9032343838</a>
+            </p>
+          </div>
+        </div>
+
+        <div class="station-row">
+          <span class="material-icons icon-station">email</span>
+          <div>
+            <strong>Official Inquiries:</strong>
+            <p><a href="mailto:sameer.sameer185@gmail.com" class="hotline-link">sameer.sameer185&#64;gmail.com</a></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dispatch-callout">
+        <span>DGCA compliant flight equipment with rotary atomizers ready for immediate dispatch.</span>
+      </div>
+    </div>
+  </section>
 </div>

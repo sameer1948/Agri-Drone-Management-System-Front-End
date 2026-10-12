@@ -1,18 +1,12 @@
-import {
-  Component,
-  ElementRef,
-  ViewChild,
-  OnInit,
-  OnDestroy,
-  AfterViewInit,
-  inject,
-  HostListener
-} from '@angular/core';
+import { Component, ElementRef, ViewChild, OnInit, OnDestroy, AfterViewInit, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AgriDroneService } from '../../services/agri-drone.service';
+import { RouterLink } from '@angular/router';
 import { Rate } from '../../models/rate.model';
 import { RateService } from '../../services/rate.service';
+import { CropService } from '../../services/crop.service';
+import { Crop } from '../../models/crop.model';
+
 
 interface SprayParticle {
   x: number;
@@ -37,7 +31,7 @@ interface CropBlade {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss']
 })
@@ -45,13 +39,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('droneCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
   private ctx!: CanvasRenderingContext2D;
   private animId: number | null = null;
-  private api = inject(AgriDroneService);
   private rateApi = inject(RateService);
+  private cropApi = inject(CropService);
 
   // Flight & Simulation State
   isSpraying = true;
   activeFluid = 'nano_urea';
-  flightAltitude = 75; // percentage or scale
+  flightAltitude = 75;
   batteryPercent = 94;
   tankPercent = 88;
   groundSpeed = 16.5; // km/h
@@ -76,24 +70,22 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private crops: CropBlade[] = [];
   private readonly maxParticles = 600;
 
-  // Rate & Calculator State
-  currentRate: Rate = { price: 250 };
-  estCrop = 'Paddy';
-  estAcres = 4;
-  estTanks = 8;
-  estCost = 2000;
+  // Database-Driven Crops & Pricing State
+  cropsList: Crop[] = [];
+  currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
 
-  // Quick Booking Form
-  booking = {
-    farmerName: '',
-    phone: '',
-    village: '',
-    crop: 'Paddy',
-    acres: 4
-  };
-  bookingSuccess = false;
+  // Calculator State (1 Acre = 1 Tank)
+  estCrop = '';
+  estAcres = 5;
+  estTanks = 5;
+  estCost = 1250;
 
   ngOnInit(): void {
+    this.loadRate();
+    this.loadCrops();
+  }
+
+  loadRate(): void {
     this.rateApi.getCurrentRate().subscribe({
       next: (res) => {
         if (res && res.price) {
@@ -101,11 +93,25 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
           this.calculateEstimate();
         }
       },
-      error: () =>{
-        alert('Failed to fetch current rate. Using default rate ₹250/tank.');
-      } 
+      error: () => {
+        console.warn('Could not fetch active tariff. Defaulting to ₹250/tank.');
+        this.calculateEstimate();
+      }
     });
-    this.calculateEstimate();
+  }
+
+  loadCrops(): void {
+    this.cropApi.getCrops().subscribe({
+      next: (crops) => {
+        this.cropsList = crops || [];
+        if (this.cropsList.length > 0 && !this.estCrop) {
+          this.estCrop = this.cropsList[0].name;
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load crops from database:', err);
+      }
+    });
   }
 
   ngAfterViewInit(): void {
@@ -154,13 +160,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // Interactive Target Setting
   onCanvasClick(event: MouseEvent): void {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    // Constrain drone flight path above the crop tops
     this.drone.targetX = clickX;
     this.drone.targetY = Math.min(Math.max(clickY, 60), 240);
   }
@@ -176,15 +180,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private getFluidColor(): string {
     switch (this.activeFluid) {
-      case 'bio_npk': return 'rgba(234, 179, 8, '; // Amber
-      case 'micro_nutrients': return 'rgba(6, 182, 212, '; // Cyan
-      case 'neem': return 'rgba(240, 253, 244, '; // White/Mint
+      case 'bio_npk': return 'rgba(234, 179, 8, ';
+      case 'micro_nutrients': return 'rgba(6, 182, 212, ';
       case 'nano_urea':
-      default: return 'rgba(52, 211, 153, '; // Emerald
+      default: return 'rgba(52, 211, 153, ';
     }
   }
 
-  // Physics & Animation Loop
   private startLoop(): void {
     const loop = () => {
       this.updatePhysics();
@@ -197,7 +199,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private updatePhysics(): void {
     const d = this.drone;
 
-    // Smooth pursuit toward target position
     const dx = d.targetX - d.x;
     const dy = d.targetY - d.y;
     d.vx += dx * 0.003;
@@ -207,14 +208,10 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     d.x += d.vx;
     d.y += d.vy;
 
-    // Banking tilt based on horizontal velocity
     d.tilt = d.vx * 0.035;
     d.rotorAngle += 0.45;
-
-    // Update Ground Speed readout
     this.groundSpeed = parseFloat((Math.hypot(d.vx, d.vy) * 4.2 + 8).toFixed(1));
 
-    // Emit spray mist if enabled
     if (this.isSpraying) {
       const leftNozzleX = d.x - 38 * Math.cos(d.tilt);
       const leftNozzleY = d.y - 38 * Math.sin(d.tilt) + 18;
@@ -224,7 +221,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       for (let i = 0; i < 4; i++) {
         if (this.sprayParticles.length < this.maxParticles) {
           const colorBase = this.getFluidColor();
-          // Left Nozzle Droplet
           this.sprayParticles.push({
             x: leftNozzleX + (Math.random() * 6 - 3),
             y: leftNozzleY,
@@ -234,7 +230,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
             size: Math.random() * 3.5 + 1.5,
             color: colorBase
           });
-          // Right Nozzle Droplet
           this.sprayParticles.push({
             x: rightNozzleX + (Math.random() * 6 - 3),
             y: rightNozzleY,
@@ -248,26 +243,20 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    // Update spray droplets
     const groundY = this.canvasRef.nativeElement.height - 18;
     for (let i = this.sprayParticles.length - 1; i >= 0; i--) {
       const p = this.sprayParticles[i];
-      p.vy += 0.04; // gravity
+      p.vy += 0.04;
       p.x += p.vx;
       p.y += p.vy;
       p.alpha -= 0.009;
 
-      // Contact with crop foliage
-      if (p.y >= groundY - 60) {
-        p.vx *= 0.6;
-      }
-
+      if (p.y >= groundY - 60) p.vx *= 0.6;
       if (p.alpha <= 0 || p.y >= groundY) {
         this.sprayParticles.splice(i, 1);
       }
     }
 
-    // Update crop reaction to drone downwash
     this.crops.forEach((c) => {
       const dist = Math.abs(c.x - d.x);
       if (dist < 120) {
@@ -288,7 +277,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, c.width, c.height);
 
-    // 1. Sky & Horizon Backdrop
     const skyGrad = ctx.createLinearGradient(0, 0, 0, c.height);
     skyGrad.addColorStop(0, '#0f291e');
     skyGrad.addColorStop(0.55, '#1e4d38');
@@ -297,7 +285,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, c.width, c.height);
 
-    // 2. Render Crop Stalks & Ground Layer
     const groundY = c.height - 10;
     this.crops.forEach((crop) => {
       ctx.save();
@@ -310,13 +297,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
       ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
 
-      // Color shifts from golden/green to vibrant emerald as fertilized
       const greenVal = Math.floor(140 + crop.moisture * 75);
       ctx.strokeStyle = `rgb(46, ${greenVal}, 64)`;
       ctx.lineWidth = crop.type === 'sugarcane' ? 3.5 : 2;
       ctx.stroke();
 
-      // Grain head
       ctx.beginPath();
       ctx.arc(tipX, tipY, 2.5, 0, Math.PI * 2);
       ctx.fillStyle = `rgb(160, ${greenVal + 15}, 80)`;
@@ -324,11 +309,9 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       ctx.restore();
     });
 
-    // 3. Ground Soil Bed
     ctx.fillStyle = '#14281d';
     ctx.fillRect(0, groundY, c.width, 10);
 
-    // 4. Render Fertilizer Particles
     this.sprayParticles.forEach((p) => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -336,7 +319,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       ctx.fill();
     });
 
-    // 5. Render Agricultural Drone
     this.drawDrone(this.drone.x, this.drone.y, this.drone.tilt, this.drone.rotorAngle);
   }
 
@@ -346,7 +328,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.translate(x, y);
     ctx.rotate(tilt);
 
-    // Carbon Fiber Arms
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -356,7 +337,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.lineTo(45, 10);
     ctx.stroke();
 
-    // Central Hexacopter Hull
     ctx.fillStyle = '#f8fafc';
     ctx.beginPath();
     ctx.roundRect(-28, -16, 56, 32, 10);
@@ -365,13 +345,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.strokeStyle = '#10b981';
     ctx.stroke();
 
-    // Fertilizer Tank with Liquid Fill Indicator
     ctx.fillStyle = '#064e3b';
     ctx.fillRect(-18, -4, 36, 16);
     ctx.fillStyle = this.getFluidColor() + '0.9)';
     ctx.fillRect(-16, 1, 32, 9);
 
-    // Dual Spray Boom and Atomizer Nozzles
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -379,24 +357,20 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.lineTo(48, 14);
     ctx.stroke();
 
-    // Left Atomizer Nozzle
     ctx.fillStyle = '#eab308';
     ctx.fillRect(-42, 14, 6, 8);
-    // Right Atomizer Nozzle
     ctx.fillRect(36, 14, 6, 8);
 
-    // Navigation LEDs
-    ctx.fillStyle = '#ef4444'; // Left Red
+    ctx.fillStyle = '#ef4444';
     ctx.beginPath();
     ctx.arc(-56, -4, 3, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#22c55e'; // Right Green
+    ctx.fillStyle = '#22c55e';
     ctx.beginPath();
     ctx.arc(56, -4, 3, 0, Math.PI * 2);
     ctx.fill();
 
-    // Spinning Rotors
     this.drawRotor(-58, -14, rotorAngle);
     this.drawRotor(58, -14, -rotorAngle);
     this.drawRotor(-26, -20, rotorAngle * 1.1);
@@ -412,7 +386,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(-4, 0, 8, 5);
 
-    // High-speed rotor blur disc
     ctx.beginPath();
     ctx.ellipse(0, 0, 26, 4, angle, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
@@ -423,41 +396,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.restore();
   }
 
-  // Cost Estimator
+  // Cost Estimator: 1 Acre = 1 Tank (Real Whole Number)
   calculateEstimate(): void {
-    let multiplier = 2.0; // tanks per acre default
-    if (this.estCrop === 'Cotton') multiplier = 2.5;
-    if (this.estCrop === 'Sugarcane') multiplier = 3.0;
-    if (this.estCrop === 'Wheat') multiplier = 1.8;
-
-    this.estTanks = Math.ceil(this.estAcres * multiplier);
-    this.estCost = this.estTanks * (this.currentRate.price || 250);
-  }
-
-  // Quick Dispatch Log Creation
-  submitQuickBooking(): void {
-    if (!this.booking.farmerName || !this.booking.phone) return;
-
-    // const newLog: LogEntry = {
-    //   createDate: new Date().toISOString().split('T')[0],
-    //   createTime: new Date().toTimeString().split(' ')[0],
-    //   cropName: this.booking.crop,
-    //   cropOwnerName: this.booking.farmerName,
-    //   cropOwnerPhone: this.booking.phone,
-    //   cropSize: this.booking.acres,
-    //   cropVillage: this.booking.village || 'Local Sector',
-    //   tankUsage: this.estTanks,
-    //   amount: this.estCost,
-    //   paymentStatus: 'PENDING'
-    // };
-
-    // this.api.createLog(newLog).subscribe({
-    //   next: () => {
-    //     this.bookingSuccess = true;
-    //     this.booking = { farmerName: '', phone: '', village: '', crop: 'Paddy', acres: 4 };
-    //     setTimeout(() => (this.bookingSuccess = false), 4000);
-    //   },
-    //   error: (err) => console.error('Error logging drone mission', err)
-    // });
+    const acres = Math.max(1, Math.round(Number(this.estAcres) || 1));
+    this.estAcres = acres;
+    this.estTanks = acres; // 1:1 proportionality
+    this.estCost = acres * (this.currentRate.price || 250);
   }
 }
