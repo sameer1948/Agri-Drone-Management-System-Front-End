@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { LogEntry } from '../models/log.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -9,7 +10,7 @@ import { LogEntry } from '../models/log.model';
 export class LogService {
 
    private http = inject(HttpClient);
-   private baseUrl = 'http://localhost:9642/agri-drone-management-system/v1/api';
+   private baseUrl = `${environment.apiBaseUrl}`;
 
   constructor() { }
 

@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Booking } from '../models/booking.model';
 import { PageResponse } from '../models/drone.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +11,7 @@ import { PageResponse } from '../models/drone.model';
 export class BookingService {
 
   private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:9642/agri-drone-management-system/v1/api';
+  private baseUrl = `${environment.apiBaseUrl}`;
 
   constructor() { }
 
