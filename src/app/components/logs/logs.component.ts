@@ -277,7 +277,24 @@ export class LogsComponent implements OnInit {
     this.amountError = '';
   }
 
-  // --- Radio / Input Amount Handling ---
+  getFormattedPaymentNotes(notes?: string): string[] {
+    if (!notes || !notes.trim()) return [];
+    return notes
+      .split(';')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+  }
+
+  copyNotesToClipboard(notes?: string): void {
+    if (!notes) return;
+    navigator.clipboard.writeText(notes.trim()).then(() => {
+      this.showToast('📋 Payment notes copied to clipboard!', 'success');
+    }).catch(() => {
+      this.showToast('Failed to copy to clipboard.', 'error');
+    });
+  }
+
+    // --- Radio / Input Amount Handling ---
   onPaymentRadioChange(): void {
     if (!this.selectedLog) return;
     const maxPending = this.getPendingAmountForLog(this.selectedLog);
@@ -393,10 +410,13 @@ export class LogsComponent implements OnInit {
         const newPending = Math.max(0, total - newPaid);
         const newStatus: PaymentStatus = newPending === 0 ? 'PAID' : 'PENDING';
 
-        const updatedPaymentNotes = 
-          `${paymentRecord.paymentNotes} 
-          User Note : ${this.paymentReferenceNote} on ${new Date().toISOString()}
-          Payment Recevied of ${currentPaid} on ${new Date().toISOString()} via ${this.paymentMode};`;
+        const nowStr = new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
+        const userRemarks = this.paymentReferenceNote.trim() ? ` [Remarks: ${this.paymentReferenceNote.trim()}]` : '';
+
+        const newNoteEntry = `  Payment of ₹${incomingAmt} recorded via ${modeLabel} on ${nowStr}${userRemarks};  `;
+        const updatedPaymentNotes = paymentRecord.paymentNotes 
+          ? `${paymentRecord.paymentNotes.trim()} ${newNoteEntry}`
+          : newNoteEntry;
 
         const updatedPayment: Payment = {
           ...paymentRecord,

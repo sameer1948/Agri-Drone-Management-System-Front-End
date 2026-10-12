@@ -1,6 +1,7 @@
 <div class="logs-container">
   <!-- Toast Notification -->
   <div *ngIf="toast.show" class="toast" [ngClass]="'toast-' + toast.type">
+    <span class="material-icons toast-glyph">{{ toast.type === 'success' ? 'check_circle' : 'warning' }}</span>
     <span>{{ toast.message }}</span>
     <button (click)="toast.show = false">✕</button>
   </div>
@@ -12,30 +13,48 @@
       <p>Operational records of drone field sprayings, tank consumptions, and payment settlements</p>
     </div>
     <button class="btn-refresh" (click)="fetchLogs()" [disabled]="isLoading">
-      🔄 Refresh Logs
+      <span class="material-icons icon-sm">sync</span>
+      <span>Refresh Logs</span>
     </button>
   </header>
 
   <!-- KPI Metrics Banner -->
   <section class="kpi-banner">
-    <div class="kpi-card">
-      <span class="label">Total Missions Run</span>
-      <strong class="val">{{ totalLogs }}</strong>
+    <div class="kpi-card total-missions">
+      <div class="kpi-icon-wrap">
+        <span class="material-icons">flight_takeoff</span>
+      </div>
+      <div class="kpi-text">
+        <span class="label">Total Missions Run</span>
+        <strong class="val">{{ totalLogs }}</strong>
+      </div>
     </div>
+
     <div class="kpi-card pending">
-      <span class="label">Pending Payments</span>
-      <strong class="val">₹{{ pendingAmount | number }}</strong>
+      <div class="kpi-icon-wrap">
+        <span class="material-icons">pending_actions</span>
+      </div>
+      <div class="kpi-text">
+        <span class="label">Pending Payments</span>
+        <strong class="val">₹{{ pendingAmount | number }}</strong>
+      </div>
     </div>
+
     <div class="kpi-card collected">
-      <span class="label">Collected Payments</span>
-      <strong class="val">₹{{ collectedAmount | number }}</strong>
+      <div class="kpi-icon-wrap">
+        <span class="material-icons">account_balance_wallet</span>
+      </div>
+      <div class="kpi-text">
+        <span class="label">Collected Payments</span>
+        <strong class="val">₹{{ collectedAmount | number }}</strong>
+      </div>
     </div>
   </section>
 
   <!-- Filter & Search Strip -->
   <section class="filter-strip">
     <div class="search-box">
-      <span class="search-icon">🔍</span>
+      <span class="material-icons search-glyph">search</span>
       <input 
         type="text" 
         placeholder="Filter by farmer, phone, crop, or village..." 
@@ -77,7 +96,7 @@
         <thead>
           <tr>
             <th (click)="setSort('createDate')" class="sortable">
-              Create Date & Time <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Confirmed Date & Time <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('cropOwnerName')" class="sortable">
               Farmer / Phone <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
@@ -94,7 +113,6 @@
             <th (click)="setSort('amount')" class="sortable">
               Total <span class="sort-indicator">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
-            <!-- NEW PENDING COLUMN -->
             <th>Pending</th>
             <th (click)="setSort('completeDate')" class="sortable">
               Complete Date <span class="sort-indicator">{{ sortBy === 'completeDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
@@ -110,7 +128,6 @@
         </thead>
 
         <tbody>
-          <!-- CLICKABLE ROW: openRowDetails(log) -->
           <tr 
             *ngFor="let log of pagedLogs" 
             [class.row-pending]="!isFullySettled(log)"
@@ -121,27 +138,32 @@
 
             <td>
               <div class="cell-stack">
-                <span class="cell-main">{{ log.createDate }}</span>
+                <span class="cell-main">{{ log.createDate | date:'dd-MM-yyyy' }}</span>
                 <span class="cell-sub">{{ log.createTime }}</span>
               </div>
             </td>
             <td>
               <div class="cell-stack">
                 <span class="cell-main">{{ log.cropOwnerName }}</span>
-                <a href="tel:{{ log.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">📞 {{ log.cropOwnerPhone }}</a>
+                <a href="tel:{{ log.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">
+                  <span class="material-icons cell-sub-icon">call</span> {{ log.cropOwnerPhone }}
+                </a>
               </div>
             </td>
             <td>
               <div class="cell-stack">
-                <span class="crop-tag">{{ log.cropName }}</span>
-                <span class="cell-sub">📍 {{ log.cropVillage }}</span>
+                <span class="crop-tag">🌱 {{ log.cropName }}</span>
+                <span class="cell-sub"><span class="material-icons cell-sub-icon">location_on</span> {{ log.cropVillage }}</span>
               </div>
             </td>
-            <td><strong>{{ log.cropSize | number:'1.1-2' }}</strong> ac</td>
-            <td><span class="tank-pill">🧪 {{ log.tankUsage }}</span></td>
+            <td><strong>{{ log.cropSize }}</strong> ac</td>
+            <td>
+              <span class="tank-pill">
+                <span class="material-icons cell-sub-icon">opacity</span> {{ log.tankUsage }}
+              </span>
+            </td>
             <td class="amount-val">₹{{ log.amount }}</td>
 
-            <!-- Real-time Pending Amount Column -->
             <td>
               <span *ngIf="getPendingAmountForLog(log) > 0" class="pending-pill">
                 ₹{{ getPendingAmountForLog(log) }}
@@ -153,7 +175,7 @@
 
             <td>
               <div class="cell-stack" *ngIf="log.completeDate">
-                <span class="cell-main">{{ log.completeDate }}</span>
+                <span class="cell-main">{{ log.completeDate | date:'dd-MM-yyyy' }}</span>
                 <span class="cell-sub">{{ log.completeTime }}</span>
               </div>
               <span *ngIf="!log.completeDate" class="cell-sub">—</span>
@@ -165,17 +187,15 @@
               </span>
             </td>
 
-            <!-- Payment Status Badge (Settled if 0 pending) -->
             <td>
               <span class="status-badge" [ngClass]="isFullySettled(log) ? 'paid' : 'pending'">
                 {{ isFullySettled(log) ? 'PAID' : 'PENDING' }}
               </span>
             </td>
 
-            <!-- Action Column with event.stopPropagation() -->
+            <!-- Action Column -->
             <td class="actions-cell" (click)="$event.stopPropagation()">
               <div class="btn-group" *ngIf="!isFullySettled(log)">
-                <!-- Completed Button -->
                 <button 
                   *ngIf="log.activityStatus === 'CONFIRMED'"
                   type="button" 
@@ -185,7 +205,6 @@
                   <span class="material-icons icon-glyph">check_circle</span>
                 </button>
 
-                <!-- Send Reminder Button -->
                 <button 
                   type="button" 
                   class="btn-action btn-remind" 
@@ -194,7 +213,6 @@
                   <span class="material-icons icon-glyph">chat</span>
                 </button>
 
-                <!-- Payment Received Button -->
                 <button 
                   type="button" 
                   class="btn-action btn-pay" 
@@ -263,8 +281,8 @@
         'header-details': activeDialogMode === 'VIEW_DETAILS'
       }">
         <div class="header-title-wrap">
-          <span class="header-icon">
-            {{ activeDialogMode === 'CONFIRM_MISSION' ? '✅' : (activeDialogMode === 'RECEIVE_PAYMENT' ? '💳' : '📋') }}
+          <span class="material-icons header-glyph">
+            {{ activeDialogMode === 'CONFIRM_MISSION' ? 'task_alt' : (activeDialogMode === 'RECEIVE_PAYMENT' ? 'payments' : 'assignment') }}
           </span>
           <div>
             <h3>
@@ -284,68 +302,95 @@
       <div class="modal-body" *ngIf="selectedLog">
         <div class="specs-grid">
           <div class="spec-item">
-            <span class="spec-label">Log Serial:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">tag</span> Log Serial:</span>
             <strong class="spec-value">#{{ selectedLog.logId }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Flight Created:</span>
-            <strong class="spec-value">{{ selectedLog.createDate }} at {{ selectedLog.createTime }}</strong>
+            <span class="spec-label"><span class="material-icons mini-icon">schedule</span> Flight Created:</span>
+            <strong class="spec-value">{{ selectedLog.createDate | date:'dd-MM-yyyy' }} at {{ selectedLog.createTime }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Farmer / Crop Owner:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">person</span> Farmer / Crop Owner:</span>
             <strong class="spec-value">{{ selectedLog.cropOwnerName }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Contact Phone:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">phone</span> Contact Phone:</span>
             <strong class="spec-value">{{ selectedLog.cropOwnerPhone }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Crop & Variety:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">eco</span> Crop & Variety:</span>
             <strong class="spec-value">{{ selectedLog.cropName }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Land Size:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">straighten</span> Land Size:</span>
             <strong class="spec-value">{{ selectedLog.cropSize }} Acres</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Farm Village:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">location_on</span> Farm Village:</span>
             <strong class="spec-value">{{ selectedLog.cropVillage }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label">Tank Usage:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">opacity</span> Tank Usage:</span>
             <strong class="spec-value">{{ selectedLog.tankUsage }} Tanks</strong>
           </div>
           <div class="spec-item" *ngIf="selectedLog.completeDate">
-            <span class="spec-label">Completed At:</span>
-            <strong class="spec-value">{{ selectedLog.completeDate }} {{ selectedLog.completeTime }}</strong>
+            <span class="spec-label"><span class="material-icons mini-icon">done_all</span> Completed At:</span>
+            <strong class="spec-value">{{ selectedLog.completeDate | date:'dd-MM-yyyy' }} {{ selectedLog.completeTime }}</strong>
           </div>          
-        </div>
-
-        <!--Payment Notes Deatils-->
-        <div class="modal-body" *ngIf="selectedLog.logId && selectedLog.completeDate">
-            <span class="spec-label">Payment Notes</span>
-            <textarea><strong class="spec-value">{{ paymentsMap.get(selectedLog.logId)?.paymentNotes }}</strong></textarea>
         </div>
 
         <!-- Financial Summary Banner -->
         <div class="financial-summary-grid">
           <div class="fin-box total">
-            <span class="fin-lbl">Total Amount</span>
+            <span class="fin-lbl"><span class="material-icons mini-icon">receipt</span> Total Amount</span>
             <strong class="fin-val">₹{{ selectedLog.amount }}</strong>
           </div>
           <div class="fin-box paid">
-            <span class="fin-lbl">Paid Amount</span>
+            <span class="fin-lbl"><span class="material-icons mini-icon">verified</span> Paid Amount</span>
             <strong class="fin-val">₹{{ getPaidAmountForLog(selectedLog) }}</strong>
           </div>
           <div class="fin-box pending">
-            <span class="fin-lbl">Pending Amount</span>
+            <span class="fin-lbl"><span class="material-icons mini-icon">pending</span> Pending Balance</span>
             <strong class="fin-val">₹{{ getPendingAmountForLog(selectedLog) }}</strong>
+          </div>
+        </div>
+
+        <!-- BEAUTIFIED PAYMENT NOTES / AUDIT TRAIL CARD -->
+        <div class="payment-notes-card" *ngIf="selectedLog.logId && paymentsMap.get(selectedLog.logId)?.paymentNotes">
+          <div class="notes-header">
+            <div class="notes-header-left">
+              <span class="material-icons notes-icon">receipt_long</span>
+              <div>
+                <h4>Transaction Ledger & Payment Notes</h4>
+                <span class="notes-subtitle">Payment logs, references, and audit history</span>
+              </div>
+            </div>
+            <button 
+              type="button" 
+              class="btn-copy-note" 
+              title="Copy notes to clipboard"
+              (click)="copyNotesToClipboard(paymentsMap.get(selectedLog.logId)?.paymentNotes)">
+              <span class="material-icons icon-sm">content_copy</span>
+              <span>Copy</span>
+            </button>
+          </div>
+
+          <div class="notes-content-stream">
+            <div 
+              class="note-entry" 
+              *ngFor="let line of getFormattedPaymentNotes(paymentsMap.get(selectedLog.logId)?.paymentNotes)">
+              <span class="material-icons line-bullet">arrow_right</span>
+              <span class="line-text">{{ line }}</span>
+            </div>
           </div>
         </div>
 
         <!-- ================= RECEIVE PAYMENT FORM SECTION ================= -->
         <div class="payment-form-section" *ngIf="activeDialogMode === 'RECEIVE_PAYMENT'">
-          <label for="payType"><strong>Select Payment Mode:</strong> <span class="req">*</span></label>
+          <label for="payType">
+            <span class="material-icons form-icon">credit_card</span>
+            <strong>Select Payment Mode:</strong> <span class="req">*</span>
+          </label>
           <select id="payType" [(ngModel)]="paymentMode" class="dropdown-input">
             <option value="CASH">💵 Cash</option>
             <option value="TRANSFER">📱 UPI / Online Bank Transfer</option>
@@ -353,7 +398,10 @@
 
           <!-- RADIO SELECTION: Fully Paid vs Custom Amount -->
           <div class="radio-selection-block">
-            <label class="section-title"><strong>Settlement Type:</strong> <span class="req">*</span></label>
+            <label class="section-title">
+              <span class="material-icons form-icon">tune</span>
+              <strong>Settlement Type:</strong> <span class="req">*</span>
+            </label>
             <div class="radio-options-row">
               <label class="radio-tile" [class.selected]="paymentRadioOption === 'FULL'">
                 <input 
@@ -362,7 +410,10 @@
                   value="FULL" 
                   [(ngModel)]="paymentRadioOption" 
                   (change)="onPaymentRadioChange()">
-                <span class="radio-label">✅ Fully Paid (₹{{ getPendingAmountForLog(selectedLog) }})</span>
+                <span class="radio-label">
+                  <span class="material-icons radio-icon">check_circle</span>
+                  Fully Paid (₹{{ getPendingAmountForLog(selectedLog) }})
+                </span>
               </label>
 
               <label class="radio-tile" [class.selected]="paymentRadioOption === 'CUSTOM'">
@@ -372,14 +423,18 @@
                   value="CUSTOM" 
                   [(ngModel)]="paymentRadioOption" 
                   (change)="onPaymentRadioChange()">
-                <span class="radio-label">✏️ Custom Amount</span>
+                <span class="radio-label">
+                  <span class="material-icons radio-icon">edit</span>
+                  Custom Amount
+                </span>
               </label>
             </div>
           </div>
 
-          <!-- INPUT FIELD (Readonly if FULL, Editable if CUSTOM) -->
+          <!-- INPUT FIELD -->
           <div class="amount-input-group">
             <label for="payAmt">
+              <span class="material-icons form-icon">currency_rupee</span>
               <strong>Amount to Collect (₹):</strong> <span class="req">*</span>
             </label>
             <div class="input-with-symbol">
@@ -398,49 +453,56 @@
             </div>
           </div>
 
-          <!-- Validation Error Alert -->
           <div class="validation-alert" *ngIf="amountError">
-            ⚠️ {{ amountError }}
+            <span class="material-icons icon-sm">warning</span>
+            <span>{{ amountError }}</span>
           </div>
 
           <!-- Transaction Reference Note -->
-          <label for="refNote" style="margin-top: 14px; display: block;">
-            <strong>Transaction Ref / Notes (Optional):</strong>
-          </label>
-          <input 
-            id="refNote" 
-            type="text" 
-            [(ngModel)]="paymentReferenceNote" 
-            placeholder="e.g. UPI Ref #89283921 / Handed over to pilot" 
-            class="text-input">
+          <div class="field-wrap" style="margin-top: 14px;">
+            <label for="refNote">
+              <span class="material-icons form-icon">edit_note</span>
+              <strong>Transaction Ref / Notes (Optional):</strong>
+            </label>
+            <input 
+              id="refNote" 
+              type="text" 
+              [(ngModel)]="paymentReferenceNote" 
+              placeholder="e.g. UPI Ref #89283921 / Handed over to Pilot Jagadeesh" 
+              class="text-input">
+          </div>
         </div>
 
         <div class="placeholder-notice" *ngIf="activeDialogMode === 'CONFIRM_MISSION'">
-          ℹ️ <em>Confirming will lock and mark this flight mission as completed in the registry.</em>
+          <span class="material-icons icon-sm">info</span>
+          <em>Confirming will lock and mark this flight mission as completed in the registry.</em>
         </div>
       </div>
 
       <!-- DIALOG FOOTER ACTIONS -->
       <div class="modal-footer">
-        <button type="button" class="btn-dialog-close" (click)="closeDialog()">Close</button>
+        <button type="button" class="btn-dialog-close" (click)="closeDialog()">
+          <span class="material-icons icon-sm">close</span>
+          <span>Close</span>
+        </button>
 
-        <!-- Submit for Confirm Mission -->
         <button 
           *ngIf="activeDialogMode === 'CONFIRM_MISSION'" 
           type="button" 
           class="btn-dialog-confirm" 
           (click)="executeConfirmAction()">
-          Spraying Completed
+          <span class="material-icons icon-sm">task_alt</span>
+          <span>Spraying Completed</span>
         </button>
 
-        <!-- Submit for Receive Payment -->
         <button 
           *ngIf="activeDialogMode === 'RECEIVE_PAYMENT'" 
           type="button" 
           class="btn-dialog-pay" 
           [disabled]="isPaymentSubmitDisabled"
           (click)="executePaymentReceived()">
-          Confirm & Record Payment
+          <span class="material-icons icon-sm">check</span>
+          <span>Confirm & Record Payment</span>
         </button>
       </div>
 
