@@ -84,7 +84,7 @@ export class LogsComponent implements OnInit {
 
   private fetchAssociatedPayments(): void {
     // Optionally load payment records for each log to track real-time pending & paid values
-    const logIds = this.allLogs.map(l => l.logId).filter(id => id != null) as number[];
+    const logIds = this.allLogs.filter(c => c.activityStatus === 'COMPLETED' && c.logId != null).map(c => c.logId as number);
     let loaded = 0;
 
     if (logIds.length === 0) {

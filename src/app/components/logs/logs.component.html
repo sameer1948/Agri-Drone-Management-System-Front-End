@@ -168,7 +168,7 @@
             <!-- Payment Status Badge (Settled if 0 pending) -->
             <td>
               <span class="status-badge" [ngClass]="isFullySettled(log) ? 'paid' : 'pending'">
-                {{ isFullySettled(log) ? 'SETTLED' : 'PENDING' }}
+                {{ isFullySettled(log) ? 'PAID' : 'PENDING' }}
               </span>
             </td>
 
