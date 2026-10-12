@@ -5,6 +5,7 @@ import { MaintenanceComponent } from './components/maintenance/maintenance.compo
 import { OperationComponent } from './components/operation/operation.component';
 import { LogsComponent } from './components/logs/logs.component';
 import { SettingsComponent } from './components/settings/settings.component';
+import { ExportReportsComponent } from './components/export-reports/export-reports.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'logs', component: LogsComponent },
   { path: 'maintenance', component: MaintenanceComponent },
   { path: 'settings', component: SettingsComponent },
+  { path: 'reports', component: ExportReportsComponent },
   { path: '**', redirectTo: '' }
 ];

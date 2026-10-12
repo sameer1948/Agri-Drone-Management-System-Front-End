@@ -214,6 +214,7 @@
                 </button>
 
                 <button 
+                *ngIf="log.activityStatus === 'COMPLETED'"
                   type="button" 
                   class="btn-action btn-pay" 
                   title="Open payment settlement dialog" 

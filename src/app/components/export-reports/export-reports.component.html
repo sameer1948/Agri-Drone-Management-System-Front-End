@@ -1,0 +1,215 @@
+<div class="export-page-container">
+  <!-- Toast Message -->
+  <div *ngIf="toast.show" class="toast" [ngClass]="'toast-' + toast.type">
+    <span class="material-icons toast-icon">{{ toast.type === 'success' ? 'check_circle' : 'warning' }}</span>
+    <span>{{ toast.message }}</span>
+    <button (click)="toast.show = false">✕</button>
+  </div>
+
+  <!-- Page Header -->
+  <header class="export-header">
+    <div class="title-wrap">
+      <div class="brand-pill">
+        <span class="material-icons pill-icon">table_view</span>
+        <span>Data Governance & Analytics</span>
+      </div>
+      <h1>Central Data Export & Excel Reports</h1>
+      <p>Download full operational records, billing registers, flight logs, and master metadata</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-sync" (click)="fetchAllData()" [disabled]="isLoading">
+        <span class="material-icons" [class.spinning]="isLoading">sync</span>
+        <span>{{ isLoading ? 'Pulling DB...' : 'Sync Data' }}</span>
+      </button>
+
+      <button class="btn-master-download" (click)="exportCompleteMasterReport()" [disabled]="isLoading || isExporting">
+        <span class="material-icons">file_download</span>
+        <span>Download Master Excel (.xlsx)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Live Database Telemetry Counters -->
+  <section class="metrics-grid">
+    <div class="metric-card">
+      <div class="icon-circle flight">
+        <span class="material-icons">flight_takeoff</span>
+      </div>
+      <div class="metric-text">
+        <span class="lbl">Completed Missions</span>
+        <strong class="val">{{ logs.length }}</strong>
+        <small class="sub">Across {{ totalAcreageSprayed }} Acres</small>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="icon-circle booking">
+        <span class="material-icons">calendar_month</span>
+      </div>
+      <div class="metric-text">
+        <span class="lbl">Total Bookings</span>
+        <strong class="val">{{ bookings.length }}</strong>
+        <small class="sub">Scheduled Missions</small>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="icon-circle drone">
+        <span class="material-icons">precision_manufacturing</span>
+      </div>
+      <div class="metric-text">
+        <span class="lbl">Registered Drones</span>
+        <strong class="val">{{ drones.length }} Units</strong>
+        <small class="sub">Hardware Fleet</small>
+      </div>
+    </div>
+
+    <div class="metric-card">
+      <div class="icon-circle revenue">
+        <span class="material-icons">account_balance_wallet</span>
+      </div>
+      <div class="metric-text">
+        <span class="lbl">Gross Volume</span>
+        <strong class="val">₹{{ totalRevenueBilled | number }}</strong>
+        <small class="sub">Billed Spray Operations</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Single-Entity Export Cards -->
+  <section class="reports-section">
+    <div class="section-heading">
+      <h2>Module-Specific Excel Exports</h2>
+      <p>Download structured spreadsheets for individual operational divisions</p>
+    </div>
+
+    <div class="cards-grid">
+      <!-- 1. Flight Mission Logs -->
+      <div class="export-card">
+        <div class="card-top">
+          <span class="material-icons card-icon logs-icon">receipt_long</span>
+          <span class="count-tag">{{ logs.length }} records</span>
+        </div>
+        <h3>Spraying Mission Logs</h3>
+        <p>Complete execution history, chemical tank counts, timestamps, pilot dispatch notes, and completion stamps.</p>
+        <button class="btn-card-export" (click)="exportSingleSheet('LOGS')" [disabled]="isLoading">
+          <span class="material-icons icon-sm">download</span>
+          <span>Download Logs (.xlsx)</span>
+        </button>
+      </div>
+
+      <!-- 2. Customer Bookings -->
+      <div class="export-card">
+        <div class="card-top">
+          <span class="material-icons card-icon bookings-icon">edit_calendar</span>
+          <span class="count-tag">{{ bookings.length }} records</span>
+        </div>
+        <h3>Bookings & Schedules</h3>
+        <p>Farmer contact phone numbers, farm location sectors, scheduled dates, and mission approval status.</p>
+        <button class="btn-card-export" (click)="exportSingleSheet('BOOKINGS')" [disabled]="isLoading">
+          <span class="material-icons icon-sm">download</span>
+          <span>Download Bookings (.xlsx)</span>
+        </button>
+      </div>
+
+      <!-- 3. Drone Hardware Registry -->
+      <div class="export-card">
+        <div class="card-top">
+          <span class="material-icons card-icon drones-icon">flight</span>
+          <span class="count-tag">{{ drones.length }} units</span>
+        </div>
+        <h3>Drone Fleet Specifications</h3>
+        <p>Unit hardware IDs, machine models, owner pilots, operational status (Active/Inactive), and contact records.</p>
+        <button class="btn-card-export" (click)="exportSingleSheet('DRONES')" [disabled]="isLoading">
+          <span class="material-icons icon-sm">download</span>
+          <span>Download Fleet (.xlsx)</span>
+        </button>
+      </div>
+
+      <!-- 4. Master Directory Metadata -->
+      <div class="export-card">
+        <div class="card-top">
+          <span class="material-icons card-icon meta-icon">dataset</span>
+          <span class="count-tag">{{ villages.length + crops.length }} items</span>
+        </div>
+        <h3>Villages & Crops Registry</h3>
+        <p>Unique database directories of serviced villages, farm sectors, and registered regional crop varieties.</p>
+        <button class="btn-card-export" (click)="exportSingleSheet('METADATA')" [disabled]="isLoading">
+          <span class="material-icons icon-sm">download</span>
+          <span>Download Directory (.xlsx)</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Data Preview Card -->
+  <section class="preview-section">
+    <div class="preview-card">
+      <div class="preview-header">
+        <div class="preview-title">
+          <span class="material-icons">preview</span>
+          <div>
+            <h3>Database Snapshot Preview</h3>
+            <p>Verified synchronization with Spring Boot database on port 8080</p>
+          </div>
+        </div>
+        <span class="sync-stamp" *ngIf="lastSyncedAt">
+          <span class="material-icons icon-sm">schedule</span>
+          Last synced: {{ lastSyncedAt | date:'mediumTime' }}
+        </span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>Dataset Division</th>
+              <th>Total Entries</th>
+              <th>Status</th>
+              <th>Format</th>
+              <th>Destination Tab</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Flight Mission Logs</strong></td>
+              <td>{{ logs.length }}</td>
+              <td><span class="status-chip active">Ready</span></td>
+              <td>OpenXML Spreadsheet</td>
+              <td><code>Mission Logs</code></td>
+            </tr>
+            <tr>
+              <td><strong>Customer Bookings</strong></td>
+              <td>{{ bookings.length }}</td>
+              <td><span class="status-chip active">Ready</span></td>
+              <td>OpenXML Spreadsheet</td>
+              <td><code>Bookings</code></td>
+            </tr>
+            <tr>
+              <td><strong>Drone Fleet Registry</strong></td>
+              <td>{{ drones.length }}</td>
+              <td><span class="status-chip active">Ready</span></td>
+              <td>OpenXML Spreadsheet</td>
+              <td><code>Drone Fleet</code></td>
+            </tr>
+            <tr>
+              <td><strong>Historical Spray Tariffs</strong></td>
+              <td>{{ rates.length }}</td>
+              <td><span class="status-chip active">Ready</span></td>
+              <td>OpenXML Spreadsheet</td>
+              <td><code>Tariff History</code></td>
+            </tr>
+            <tr>
+              <td><strong>Villages & Crops Metadata</strong></td>
+              <td>{{ villages.length }} villages, {{ crops.length }} crops</td>
+              <td><span class="status-chip active">Ready</span></td>
+              <td>OpenXML Spreadsheet</td>
+              <td><code>Villages Directory</code>, <code>Crops Registry</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
