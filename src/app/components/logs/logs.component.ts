@@ -393,15 +393,24 @@ export class LogsComponent implements OnInit {
         const newPending = Math.max(0, total - newPaid);
         const newStatus: PaymentStatus = newPending === 0 ? 'PAID' : 'PENDING';
 
+        const updatedPaymentNotes = 
+          `${paymentRecord.paymentNotes} 
+          User Note : ${this.paymentReferenceNote} on ${new Date().toISOString()}
+          Payment Recevied of ${currentPaid} on ${new Date().toISOString()} via ${this.paymentMode};`;
+
         const updatedPayment: Payment = {
           ...paymentRecord,
           paidAmount: newPaid,
           pendingAmount: newPending,
           paymentStatus: newStatus,
+          paymentDate: paymentRecord.paymentDate == null ? 
+                       new Date().toISOString().split('T')[0] : paymentRecord.paymentDate, 
+          paymentTime: paymentRecord.paymentDate == null ? 
+                       new Date().toLocaleTimeString('en-US', { hour12: false }): paymentRecord.paymentTime,
           lastPaymentDate: new Date().toISOString().split('T')[0],
           lastPaymentTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
           paymentType: this.paymentMode,
-          paymentNotes: this.paymentReferenceNote
+          paymentNotes: updatedPaymentNotes
         };
 
         this.paymentApi.updatePayment(paymentRecord.paymentId, updatedPayment).subscribe({

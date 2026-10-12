@@ -318,7 +318,13 @@
           <div class="spec-item" *ngIf="selectedLog.completeDate">
             <span class="spec-label">Completed At:</span>
             <strong class="spec-value">{{ selectedLog.completeDate }} {{ selectedLog.completeTime }}</strong>
-          </div>
+          </div>          
+        </div>
+
+        <!--Payment Notes Deatils-->
+        <div class="modal-body" *ngIf="selectedLog.logId && selectedLog.completeDate">
+            <span class="spec-label">Payment Notes</span>
+            <textarea><strong class="spec-value">{{ paymentsMap.get(selectedLog.logId)?.paymentNotes }}</strong></textarea>
         </div>
 
         <!-- Financial Summary Banner -->
