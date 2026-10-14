@@ -386,7 +386,7 @@ export class OperationComponent implements OnInit {
     ].filter(line => line !== null && line !== undefined);
 
     const encodedMessage = encodeURIComponent(messageLines.join('\n'));
-    const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/send?phone=${cleanPhone}&text=${encodedMessage}`;
 
     // Target a named window to redirect/reuse an existing WhatsApp Web tab
     window.open(whatsappUrl, 'whatsapp_window');
