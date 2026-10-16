@@ -202,7 +202,7 @@ export class ExportReportsComponent implements OnInit {
       const wsBookings = XLSX.utils.json_to_sheet(bookingsData);
       XLSX.utils.book_append_sheet(wb, wsBookings, 'Bookings');
 
-      // 4. TAB: Drone Fleet Registry
+      // 4. TAB: Drone Registry
       const dronesData = this.drones.map(d => ({
         'Hardware ID': d.droneId,
         'Drone Model': d.droneName,

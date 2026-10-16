@@ -188,7 +188,7 @@ export class SettingsComponent implements OnInit {
       next: (res) => {
         this.currentCapacity = res;
         this.closeModal();
-        this.showToast(`Daily fleet capacity updated to ${res.maxAcres} Acres/day!`, 'success');
+        this.showToast(`Daily capacity updated to ${res.maxAcres} Acres/day!`, 'success');
       },
       error: () => this.showToast('Failed to update daily capacity.', 'error')
     });

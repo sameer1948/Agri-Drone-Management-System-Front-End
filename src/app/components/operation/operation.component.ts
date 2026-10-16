@@ -48,7 +48,7 @@ export class OperationComponent implements OnInit {
   private capacityApi = inject(MaxCapacityService);
   private fb = inject(FormBuilder);
 
-  // Maximum single-day fleet spraying capacity
+  // Maximum single-day spraying capacity
   maxDailyAcres: number = 30;
 
   // Primary UI is Calendar

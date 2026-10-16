@@ -137,11 +137,11 @@
           <span class="material-icons card-icon drones-icon">flight</span>
           <span class="count-tag">{{ drones.length }} units</span>
         </div>
-        <h3>Drone Fleet Specifications</h3>
+        <h3>Drone Specifications</h3>
         <p>Hardware IDs, models, owner chief pilots, contact numbers, and operational readiness status.</p>
         <button class="btn-card-export" (click)="exportSingleSheet('DRONES')" [disabled]="isLoading">
           <span class="material-icons icon-sm">download</span>
-          <span>Download Fleet (.xlsx)</span>
+          <span>Download (.xlsx)</span>
         </button>
       </div>
 
@@ -230,7 +230,7 @@
               <td>
                 <div class="division-title">
                   <span class="material-icons icon-sm" style="color: #475569;">flight</span>
-                  <strong>Drone Fleet Registry</strong>
+                  <strong>Drone Registry</strong>
                 </div>
               </td>
               <td>{{ drones.length }}</td>

@@ -45,7 +45,7 @@ export class BookingComponent implements OnInit {
   private cropApi = inject(CropService);
   private capacityApi = inject(MaxCapacityService);
 
-  // Maximum acreage a drone fleet can spray in a single day
+  // Maximum acreage a drone can spray in a single day
   maxDailyAcres: number = 30;
 
   // View Toggle ('TABLE' | 'CALENDAR')
