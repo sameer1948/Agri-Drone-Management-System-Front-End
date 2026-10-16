@@ -14,16 +14,48 @@
       <div class="title-row">
         <h1>Fleet Operations & Booking Dispatch</h1>
       </div>
-      <p class="subtitle">Review scheduled missions, assign drone hardware, update parameters, or dispatch WhatsApp notices</p>
+      <p class="subtitle">Review scheduled missions, assign drone hardware, manage daily capacities, and dispatch WhatsApp notices</p>
     </div>
 
     <div class="header-tools">
+      <!-- VIEW TOGGLE BUTTONS (CALENDAR vs TABLE) -->
+      <div class="view-toggle-group">
+        <button 
+          type="button" 
+          class="btn-toggle" 
+          [class.active]="activeView === 'CALENDAR'" 
+          (click)="switchView('CALENDAR')">
+          <span class="material-icons">calendar_month</span>
+          <span>Calendar</span>
+        </button>
+        <button 
+          type="button" 
+          class="btn-toggle" 
+          [class.active]="activeView === 'TABLE'" 
+          (click)="switchView('TABLE')">
+          <span class="material-icons">table_rows</span>
+          <span>Table</span>
+        </button>
+      </div>
+
       <a routerLink="/booking" class="btn-create-nav">
         <span class="material-icons icon-sm">add</span>
         <span>New Booking</span>
       </a>
     </div>
   </header>
+
+  <!-- Rate & Daily Capacity Info Strip -->
+  <div class="rate-strip">
+    <div class="rate-info">
+      <span class="material-icons strip-icon">payments</span>
+      <span>Active Rate: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</span>
+    </div>
+    <div class="capacity-info">
+      <span class="material-icons strip-icon">speed</span>
+      <span>Daily Fleet Limit: <strong>{{ MAX_DAILY_ACRES }} Acres / Day</strong> Max Spray Coverage</span>
+    </div>
+  </div>
 
   <!-- Operational KPI Summary Cards -->
   <section class="kpi-grid">
@@ -45,200 +77,342 @@
     </div>
   </section>
 
-  <!-- Filter & Search Toolbar -->
-  <section class="filter-bar">
-    <div class="search-wrap">
-      <span class="material-icons search-glyph">search</span>
-      <input 
-        type="text" 
-        placeholder="Search by farmer name, phone, or village..." 
-        [(ngModel)]="searchTerm" 
-        (keyup.enter)="loadData(0)">
-    </div>
-
-    <!-- Status Filter -->
-    <div class="filter-dropdown">
-      <label>Status:</label>
-      <select [(ngModel)]="selectedStatusFilter" (change)="loadData(0)">
-        <option value="ALL">All Statuses</option>
-        <option value="PENDING">Pending</option>
-        <option value="CONFIRMED">Confirmed</option>
-        <option value="CANCELLED">Cancelled</option>
-      </select>
-    </div>
-
-    <!-- Dynamic Crop Filter from Database -->
-    <div class="filter-dropdown">
-      <label>Crop:</label>
-      <select [(ngModel)]="selectedCropFilter" (change)="loadData(0)">
-        <option value="ALL">All Crops</option>
-        <option *ngFor="let c of cropsList" [value]="c.name">{{ c.name }}</option>
-      </select>
-    </div>
-
-    <button class="btn-apply-filter" (click)="loadData(0)">
-      <span class="material-icons icon-sm">filter_alt</span>
-      <span>Apply</span>
-    </button>
-  </section>
-
-  <!-- Bookings Data Table Card -->
-  <div class="table-container">
-    <div *ngIf="isLoading" class="loading-overlay">
-      <div class="spin"></div>
-      <p>Syncing operations data...</p>
-    </div>
-
-    <div class="table-responsive">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th (click)="toggleSort('bookingId')" class="sortable">
-              ID <span class="sort-icon">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('bookingDate')" class="sortable">
-              Schedule Date (DD-MM-YYYY) <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('cropOwnerName')" class="sortable">
-              Farmer / Contact <span class="sort-icon">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th>Crop & Village</th>
-            <th (click)="toggleSort('cropSize')" class="sortable">
-              Area (Ac) <span class="sort-icon">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('amount')" class="sortable">
-              Total Amount <span class="sort-icon">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th (click)="toggleSort('bookingStatus')" class="sortable">
-              Status <span class="sort-icon">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th class="text-center">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <!-- CLICKABLE ROW -->
-          <tr 
-            *ngFor="let b of bookings" 
-            [class.cancelled-row]="b.bookingStatus === 'CANCELLED'"
-            class="clickable-row"
-            (click)="openRowDetails(b)"
-            title="Click row to view mission details">
-
-            <td class="bold">#{{ b.bookingId }}</td>
-            <td>
-              <div class="date-cell">
-                <span class="date">{{ b.bookingDate | date:'dd-MM-yyyy' }}</span>
-                <span class="day">{{ b.bookingDay }}</span>
-              </div>
-            </td>
-            <td>
-              <div class="farmer-cell">
-                <strong>{{ b.cropOwnerName }}</strong>
-                <a href="tel:{{ b.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
-              </div>
-            </td>
-            <td>
-              <span class="crop-badge">{{ b.cropName }}</span>
-              <small class="village-text">📍 {{ b.cropVillage }}</small>
-            </td>
-            <td><strong>{{ b.cropSize }}</strong> ac</td>
-            <td class="amount-text">₹{{ b.amount }}</td>
-            <td>
-              <span class="status-pill" [ngClass]="b.bookingStatus!.toLowerCase()">
-                {{ b.bookingStatus }}
-              </span>
-            </td>
-
-            <!-- ACTIONS COLUMN -->
-            <td class="text-center actions-cell" (click)="$event.stopPropagation()">
-              <div class="action-btn-group">
-                <!-- Edit (Pending only) -->
-                <button 
-                  type="button"
-                  *ngIf="b.bookingStatus === 'PENDING'" 
-                  class="btn-mat-icon edit" 
-                  title="Edit Parameters" 
-                  (click)="openEditModal(b, $event)">
-                  <span class="material-icons">edit</span>
-                </button>
-
-                <!-- Confirm Mission (Pending only) -->
-                <button 
-                  type="button"
-                  *ngIf="b.bookingStatus === 'PENDING'" 
-                  class="btn-mat-icon confirm" 
-                  title="Confirm Mission & Assign Drone" 
-                  (click)="openActionDialog('CONFIRM', b, $event)">
-                  <span class="material-icons">check_circle</span>
-                </button>
-
-                <!-- Cancel (Pending only) -->
-                <button 
-                  type="button"
-                  *ngIf="b.bookingStatus === 'PENDING'" 
-                  class="btn-mat-icon cancel" 
-                  title="Cancel Mission" 
-                  (click)="openActionDialog('CANCEL', b, $event)">
-                  <span class="material-icons">cancel</span>
-                </button>
-
-                <!-- Send WhatsApp Notice (Positioned at the end) -->
-                <button 
-                  type="button"
-                  class="btn-mat-icon send" 
-                  title="Send Status-Based WhatsApp Notification" 
-                  (click)="sendNotification(b, $event)">
-                  <span class="material-icons">chat</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-
-          <tr *ngIf="!isLoading && bookings.length === 0">
-            <td colspan="8" class="no-records">No bookings match the selected criteria.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Pagination Footer -->
-    <footer class="pagination-footer">
-      <div class="pagination-info">
-        Showing <strong>{{ (currentPage * pageSize) + 1 }}</strong> - 
-        <strong>{{ (currentPage * pageSize) + bookings.length }}</strong> of 
-        <strong>{{ totalElements }}</strong>
+  <!-- ================= VIEW 1: PRIMARY CALENDAR VIEW ================= -->
+  <div class="calendar-card" *ngIf="activeView === 'CALENDAR'">
+    <div class="calendar-toolbar">
+      <div class="month-title-wrap">
+        <h2>{{ currentCalendarDate | date:'MMMM yyyy' }}</h2>
+        <span class="legend-note">Click any date to view missions, confirm flights, edit, or dispatch notices</span>
       </div>
 
-      <div class="pagination-right">
-        <div class="page-size">
-          <label>Per page:</label>
-          <select [ngModel]="pageSize" (ngModelChange)="pageSize = $event; loadData(0)">
-            <option *ngFor="let s of pageSizeOptions" [value]="s">{{ s }}</option>
-          </select>
+      <div class="calendar-actions">
+        <button class="btn-cal-nav" (click)="prevMonth()" title="Previous Month">
+          <span class="material-icons">chevron_left</span>
+        </button>
+        <button class="btn-cal-today" (click)="jumpToToday()">
+          <span class="material-icons icon-sm">today</span>
+          <span>Today</span>
+        </button>
+        <button class="btn-cal-nav" (click)="nextMonth()" title="Next Month">
+          <span class="material-icons">chevron_right</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Capacity Legend -->
+    <div class="capacity-legend">
+      <span class="legend-item"><span class="dot available"></span> Available (&lt;20 Ac)</span>
+      <span class="legend-item"><span class="dot high"></span> High Load (20-29 Ac)</span>
+      <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ MAX_DAILY_ACRES }} Ac)</span>
+    </div>
+
+    <!-- Day Names Header -->
+    <div class="calendar-grid-header">
+      <div class="cal-weekday" *ngFor="let dayName of weekDays">{{ dayName }}</div>
+    </div>
+
+    <!-- Calendar 7x6 Grid -->
+    <div class="calendar-grid">
+      <div 
+        *ngFor="let day of calendarDays" 
+        class="cal-day-cell" 
+        [class.outside-month]="!day.isCurrentMonth"
+        [class.is-today]="day.isToday"
+        [class.is-full]="day.isFull"
+        [class.has-bookings]="day.bookings.length > 0"
+        (click)="openDayMissionsDialog(day)">
+        
+        <div class="day-top">
+          <span class="day-num">{{ day.dayNumber }}</span>
+          <span class="capacity-badge" *ngIf="day.totalAcres > 0" [class.badge-full]="day.isFull">
+            {{ day.totalAcres }}/{{ MAX_DAILY_ACRES }} Ac
+          </span>
         </div>
 
-        <div class="page-btns">
-          <button [disabled]="currentPage === 0" (click)="loadData(currentPage - 1)">‹</button>
-          <button 
-            *ngFor="let p of getPageNumbers()" 
-            [class.active]="p === currentPage" 
-            (click)="loadData(p)">
-            {{ p + 1 }}
-          </button>
-          <button [disabled]="currentPage >= totalPages - 1" (click)="loadData(currentPage + 1)">›</button>
+        <div class="day-content" *ngIf="day.bookings.length > 0">
+          <div 
+            class="booking-chip" 
+            *ngFor="let b of day.bookings.slice(0, 2)"
+            [ngClass]="b.bookingStatus?.toLowerCase()">
+            <span class="chip-crop">{{ b.cropName }}</span>
+            <span class="chip-acres">{{ b.cropSize }}ac</span>
+          </div>
+
+          <span class="more-count" *ngIf="day.bookings.length > 2">
+            +{{ day.bookings.length - 2 }} more
+          </span>
+        </div>
+
+        <div class="day-empty" *ngIf="day.bookings.length === 0 && day.isCurrentMonth">
+          <span class="add-hint">Open</span>
+        </div>
+
+        <div class="locked-banner" *ngIf="day.isFull">
+          <span class="material-icons icon-sm">lock</span>
+          <span>FULL</span>
         </div>
       </div>
-    </footer>
+    </div>
   </div>
 
-  <!-- ================= DETAILS VIEW MODAL (ON ROW CLICK) ================= -->
-  <div class="modal-backdrop" *ngIf="isDetailsModalOpen" (click)="closeRowDetails()">
-    <div class="modal-box details-box" (click)="$event.stopPropagation()">
+  <!-- ================= VIEW 2: TABLE VIEW ================= -->
+  <div *ngIf="activeView === 'TABLE'">
+    <section class="filter-bar">
+      <div class="search-wrap">
+        <span class="material-icons search-glyph">search</span>
+        <input 
+          type="text" 
+          placeholder="Search by farmer name, phone, or village..." 
+          [(ngModel)]="searchTerm" 
+          (keyup.enter)="loadData(0)">
+      </div>
+
+      <div class="filter-dropdown">
+        <label>Status:</label>
+        <select [(ngModel)]="selectedStatusFilter" (change)="loadData(0)">
+          <option value="ALL">All Statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+
+      <div class="filter-dropdown">
+        <label>Crop:</label>
+        <select [(ngModel)]="selectedCropFilter" (change)="loadData(0)">
+          <option value="ALL">All Crops</option>
+          <option *ngFor="let c of cropsList" [value]="c.name">{{ c.name }}</option>
+        </select>
+      </div>
+
+      <button class="btn-apply-filter" (click)="loadData(0)">
+        <span class="material-icons icon-sm">filter_alt</span>
+        <span>Apply</span>
+      </button>
+    </section>
+
+    <div class="table-container">
+      <div *ngIf="isLoading" class="loading-overlay">
+        <div class="spin"></div>
+        <p>Syncing operations data...</p>
+      </div>
+
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th (click)="toggleSort('bookingId')" class="sortable">
+                ID <span class="sort-icon">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('bookingDate')" class="sortable">
+                Date (DD-MM-YYYY) <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('cropOwnerName')" class="sortable">
+                Farmer / Contact <span class="sort-icon">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th>Crop & Village</th>
+              <th (click)="toggleSort('cropSize')" class="sortable">
+                Area (Ac) <span class="sort-icon">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('amount')" class="sortable">
+                Total Amount <span class="sort-icon">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th (click)="toggleSort('bookingStatus')" class="sortable">
+                Status <span class="sort-icon">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              </th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr 
+              *ngFor="let b of bookings" 
+              [class.cancelled-row]="b.bookingStatus === 'CANCELLED'"
+              class="clickable-row"
+              (click)="openRowDetails(b, $event)"
+              title="Click row to view mission details">
+
+              <td class="bold">#{{ b.bookingId }}</td>
+              <td>
+                <div class="date-cell">
+                  <span class="date">{{ b.bookingDate | date:'dd-MM-yyyy' }}</span>
+                  <span class="day">{{ b.bookingDay }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="farmer-cell">
+                  <strong>{{ b.cropOwnerName }}</strong>
+                  <a href="tel:{{ b.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
+                </div>
+              </td>
+              <td>
+                <span class="crop-badge">{{ b.cropName }}</span>
+                <small class="village-text">📍 {{ b.cropVillage }}</small>
+              </td>
+              <td><strong>{{ b.cropSize }}</strong> ac</td>
+              <td class="amount-text">₹{{ b.amount }}</td>
+              <td>
+                <span class="status-pill" [ngClass]="b.bookingStatus!.toLowerCase()">
+                  {{ b.bookingStatus }}
+                </span>
+              </td>
+
+              <!-- Actions Column -->
+              <td class="text-center actions-cell" (click)="$event.stopPropagation()">
+                <div class="action-btn-group">
+                  <button 
+                    type="button"
+                    *ngIf="b.bookingStatus === 'PENDING'" 
+                    class="btn-mat-icon edit" 
+                    title="Edit Parameters" 
+                    (click)="openEditModal(b, $event)">
+                    <span class="material-icons">edit</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    *ngIf="b.bookingStatus === 'PENDING'" 
+                    class="btn-mat-icon confirm" 
+                    title="Confirm Mission & Assign Drone" 
+                    (click)="openActionDialog('CONFIRM', b, $event)">
+                    <span class="material-icons">check_circle</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    *ngIf="b.bookingStatus === 'PENDING'" 
+                    class="btn-mat-icon cancel" 
+                    title="Cancel Mission" 
+                    (click)="openActionDialog('CANCEL', b, $event)">
+                    <span class="material-icons">cancel</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    class="btn-mat-icon send" 
+                    title="Send WhatsApp Notification" 
+                    (click)="sendNotification(b, $event)">
+                    <span class="material-icons">chat</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <tr *ngIf="!isLoading && bookings.length === 0">
+              <td colspan="8" class="no-records">No bookings match the selected criteria.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination-footer">
+        <div class="pagination-info">
+          Showing <strong>{{ (currentPage * pageSize) + 1 }}</strong> - 
+          <strong>{{ (currentPage * pageSize) + bookings.length }}</strong> of 
+          <strong>{{ totalElements }}</strong>
+        </div>
+
+        <div class="pagination-right">
+          <div class="page-size">
+            <label>Per page:</label>
+            <select [ngModel]="pageSize" (ngModelChange)="pageSize = $event; loadData(0)">
+              <option *ngFor="let s of pageSizeOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+
+          <div class="page-btns">
+            <button [disabled]="currentPage === 0" (click)="loadData(currentPage - 1)">‹</button>
+            <button 
+              *ngFor="let p of getPageNumbers()" 
+              [class.active]="p === currentPage" 
+              (click)="loadData(p)">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="currentPage >= totalPages - 1" (click)="loadData(currentPage + 1)">›</button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= TIER 1: PARENT DAY MISSIONS DIALOG (CHILD OF CALENDAR) ================= -->
+  <div class="modal-backdrop tier-1-backdrop" *ngIf="isDayMissionsDialogOpen" (click)="closeDayMissionsDialog()">
+    <div class="modal-box day-missions-box animate-scale-in" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div class="head-title">
+          <span class="material-icons icon-sm">event</span>
+          <div>
+            <h3>Scheduled Missions for {{ selectedCalendarDay?.dateStr | date:'fullDate' }}</h3>
+            <span class="capacity-subtitle" [class.full-warn]="selectedCalendarDay?.isFull">
+              Capacity: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ MAX_DAILY_ACRES }} Acres Sprayed</strong>
+            </span>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeDayMissionsDialog()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="day-full-alert" *ngIf="selectedCalendarDay?.isFull">
+          <span class="material-icons">report</span>
+          <div>
+            <strong>Bookings Full for this Date!</strong>
+            <p>Maximum daily limit of {{ MAX_DAILY_ACRES }} acres reached for pilot and battery duty cycles.</p>
+          </div>
+        </div>
+
+        <div *ngIf="selectedCalendarDay?.bookings?.length === 0" class="empty-day-state">
+          <span class="material-icons empty-icon">calendar_today</span>
+          <p>No spraying missions booked for this date.</p>
+          <a routerLink="/booking" class="btn-create-nav" (click)="closeDayMissionsDialog()">
+            <span class="material-icons icon-sm">add</span>
+            <span>Create a Booking</span>
+          </a>
+        </div>
+
+        <div class="day-mission-cards-list" *ngIf="selectedCalendarDay && selectedCalendarDay.bookings.length > 0">
+          <div 
+            class="mission-card-item" 
+            *ngFor="let b of selectedCalendarDay.bookings"
+            (click)="openRowDetails(b, $event)">
+            
+            <div class="card-left">
+              <div class="card-header-line">
+                <span class="b-id">#{{ b.bookingId }}</span>
+                <strong>{{ b.cropOwnerName }}</strong>
+                <span class="status-pill" [ngClass]="b.bookingStatus?.toLowerCase()">{{ b.bookingStatus }}</span>
+              </div>
+              
+              <div class="card-meta-line">
+                <span>📍 {{ b.cropVillage }}</span>
+                <span>🌱 {{ b.cropName }}</span>
+                <span>📐 <strong>{{ b.cropSize }} Acres</strong> ({{ b.cropSize }} Tanks)</span>
+                <span>📞 {{ b.cropOwnerPhone }}</span>
+              </div>
+
+              <p class="card-note" *ngIf="b.bookingNotes">📝 {{ b.bookingNotes }}</p>
+            </div>
+
+            <div class="card-right">
+              <strong class="price-val">₹{{ b.amount }}</strong>
+              <span class="action-cta-hint">View &amp; Actions ›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn-secondary" (click)="closeDayMissionsDialog()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TIER 2: CHILD DETAILS & ACTIONS DIALOG (CHILD OF DAY DIALOG) ================= -->
+  <div class="modal-backdrop tier-2-backdrop" *ngIf="isDetailsModalOpen" (click)="closeRowDetails()">
+    <div class="modal-box details-box animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <div class="head-title">
           <span class="material-icons icon-sm">flight</span>
-          <h3>Mission Booking Details #{{ selectedBookingDetails?.bookingId }}</h3>
+          <h3>Mission Details &amp; Actions #{{ selectedBookingDetails?.bookingId }}</h3>
         </div>
         <button class="btn-close" (click)="closeRowDetails()">✕</button>
       </div>
@@ -291,19 +465,55 @@
           <p>{{ selectedBookingDetails.bookingNotes }}</p>
         </div>
 
-        <!-- Aligned View Dialog Action Footer -->
+        <!-- Comprehensive Actions Bar inside Details Modal -->
+        <div class="mission-actions-bar">
+          <span class="actions-lbl">Available Actions:</span>
+          <div class="actions-group-row">
+            <!-- Edit Button -->
+            <button 
+              *ngIf="selectedBookingDetails.bookingStatus === 'PENDING'"
+              type="button" 
+              class="btn-action-tile edit"
+              (click)="openEditModal(selectedBookingDetails, $event)">
+              <span class="material-icons">edit</span>
+              <span>Edit Details</span>
+            </button>
+
+            <!-- Confirm Button -->
+            <button 
+              *ngIf="selectedBookingDetails.bookingStatus === 'PENDING'"
+              type="button" 
+              class="btn-action-tile confirm"
+              (click)="confirmFromDetails()">
+              <span class="material-icons">check_circle</span>
+              <span>Confirm Mission</span>
+            </button>
+
+            <!-- Send WhatsApp Button -->
+            <button 
+              type="button" 
+              class="btn-action-tile send"
+              (click)="sendNotification(selectedBookingDetails, $event)">
+              <span class="material-icons">chat</span>
+              <span>Send WhatsApp</span>
+            </button>
+
+            <!-- Cancel Button -->
+            <button 
+              *ngIf="selectedBookingDetails.bookingStatus === 'PENDING'"
+              type="button" 
+              class="btn-action-tile cancel"
+              (click)="openActionDialog('CANCEL', selectedBookingDetails, $event)">
+              <span class="material-icons">cancel</span>
+              <span>Cancel Mission</span>
+            </button>
+          </div>
+        </div>
+
         <div class="modal-foot-aligned">
           <button type="button" class="btn-secondary" (click)="closeRowDetails()">
-            <span class="material-icons icon-sm">close</span>
-            <span>Close</span>
-          </button>
-          <button 
-            *ngIf="selectedBookingDetails.bookingStatus === 'PENDING'"
-            type="button" 
-            class="btn-primary btn-confirm-now" 
-            (click)="confirmFromDetails()">
-            <span class="material-icons icon-sm">check_circle</span>
-            <span>Confirm This Mission</span>
+            <span class="material-icons icon-sm">arrow_back</span>
+            <span>Back to Day List</span>
           </button>
         </div>
       </div>
@@ -311,8 +521,8 @@
   </div>
 
   <!-- ================= EDIT POPUP MODAL ================= -->
-  <div class="modal-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
-    <div class="modal-box" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop tier-3-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
+    <div class="modal-box animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <div class="head-title">
           <span class="material-icons icon-sm">edit</span>
@@ -322,8 +532,15 @@
       </div>
 
       <form [formGroup]="editForm" (ngSubmit)="submitEditForm()" class="modal-body">
+        <div class="day-full-alert" *ngIf="isDateLimitExceeded">
+          <span class="material-icons">report</span>
+          <div>
+            <strong>Capacity Alert:</strong>
+            <p>{{ capacityErrorMessage }}</p>
+          </div>
+        </div>
+
         <div class="form-grid">
-          <!-- Booking Date -->
           <div class="field">
             <label>
               <span class="material-icons icon-label">calendar_today</span>
@@ -343,7 +560,6 @@
             <input type="text" formControlName="bookingDay" readonly class="readonly">
           </div>
 
-          <!-- Dynamic Crop Dropdown from Database -->
           <div class="field">
             <label>
               <span class="material-icons icon-label">eco</span>
@@ -353,12 +569,8 @@
               <option value="" disabled>-- Select Crop from DB --</option>
               <option *ngFor="let c of cropsList" [value]="c.name">🌱 {{ c.name }}</option>
             </select>
-            <small class="err" *ngIf="editForm.get('cropName')?.touched && editForm.get('cropName')?.invalid">
-              Please choose a crop.
-            </small>
           </div>
 
-          <!-- Dynamic Village Dropdown from Database -->
           <div class="field">
             <label>
               <span class="material-icons icon-label">location_on</span>
@@ -368,36 +580,24 @@
               <option value="" disabled>-- Select Village from DB --</option>
               <option *ngFor="let v of villagesList" [value]="v.name">📍 {{ v.name }}</option>
             </select>
-            <small class="err" *ngIf="editForm.get('cropVillage')?.touched && editForm.get('cropVillage')?.invalid">
-              Village location is required.
-            </small>
           </div>          
 
-          <!-- Farmer Name -->
           <div class="field">
             <label>
               <span class="material-icons icon-label">person</span>
               Farmer Name <span class="req">*</span>
             </label>
             <input type="text" formControlName="cropOwnerName" placeholder="Farmer full name">
-            <small class="err" *ngIf="editForm.get('cropOwnerName')?.touched && editForm.get('cropOwnerName')?.invalid">
-              Farmer name is required (min 3 chars).
-            </small>
           </div>
 
-          <!-- Mobile Phone -->
           <div class="field">
             <label>
               <span class="material-icons icon-label">phone</span>
               Phone Number <span class="req">*</span>
             </label>
             <input type="tel" maxlength="10" formControlName="cropOwnerPhone" placeholder="10-digit number">
-            <small class="err" *ngIf="editForm.get('cropOwnerPhone')?.touched && editForm.get('cropOwnerPhone')?.invalid">
-              Valid 10-digit phone starting 6-9 required.
-            </small>
           </div>
 
-          <!-- Whole Acre Input with Precision Error Handling -->
           <div class="field">
             <label>
               <span class="material-icons icon-label">straighten</span>
@@ -408,21 +608,8 @@
               step="1" 
               formControlName="cropSize" 
               placeholder="e.g. 5"
-              [class.error-input]="editForm.get('cropSize')?.touched && editForm.get('cropSize')?.invalid">
-            <small class="hint">1 Acre = 1 Tank (Real whole numbers only)</small>
-            
-            <!-- Precise Validation Error Alerts -->
-            <div class="err-box" *ngIf="editForm.get('cropSize')?.touched && editForm.get('cropSize')?.invalid">
-              <small class="err" *ngIf="editForm.get('cropSize')?.errors?.['required']">
-                Land size is required.
-              </small>
-              <small class="err" *ngIf="editForm.get('cropSize')?.errors?.['min']">
-                Land size must be at least 1 acre.
-              </small>
-              <small class="err" *ngIf="editForm.get('cropSize')?.errors?.['pattern']">
-                ⚠️ Decimals/precisions not allowed. Whole numbers only (1, 2, 3...).
-              </small>
-            </div>
+              [class.error-input]="isDateLimitExceeded">
+            <small class="hint">1 Acre = 1 Tank (Max {{ MAX_DAILY_ACRES }} Ac/day limit)</small>
           </div>
 
           <div class="field">
@@ -458,8 +645,7 @@
           <button 
             type="submit" 
             class="btn-primary" 
-            [disabled]="editForm.invalid"
-            [title]="editForm.invalid ? 'Correct all validation errors to save' : 'Save Changes'">
+            [disabled]="editForm.invalid || isDateLimitExceeded">
             <span class="material-icons icon-sm">save</span>
             <span>Save Changes</span>
           </button>
@@ -469,8 +655,13 @@
   </div>
 
   <!-- ================= ACTION CONFIRMATION DIALOG ================= -->
-  <div class="modal-backdrop" *ngIf="isConfirmActionDialogOpen" (click)="closeActionDialog()">
-    <div class="confirm-dialog-box" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop tier-3-backdrop" *ngIf="isConfirmActionDialogOpen" (click)="closeActionDialog()">
+    <div 
+      class="confirm-dialog-box animate-scale-in" 
+      [class.animate-bounce-check]="isActionAnimating && activeActionType === 'CONFIRM'"
+      [class.animate-shake-fade]="isActionAnimating && activeActionType === 'CANCEL'"
+      (click)="$event.stopPropagation()">
+      
       <div class="dialog-icon" [ngClass]="activeActionType?.toLowerCase()">
         <span class="material-icons">
           {{ activeActionType === 'CONFIRM' ? 'flight_takeoff' : 'cancel' }}
@@ -506,13 +697,19 @@
       </div>
 
       <div class="dialog-actions">
-        <button class="btn-secondary" (click)="closeActionDialog()">Close</button>
+        <button class="btn-secondary" (click)="closeActionDialog()" [disabled]="isActionAnimating">
+          <span class="material-icons icon-sm">close</span>
+          <span>Close</span>
+        </button>
         <button 
           class="btn-dialog-execute" 
           [ngClass]="activeActionType?.toLowerCase()" 
-          [disabled]="activeActionType === 'CONFIRM' && !selectedDroneId"
+          [disabled]="(activeActionType === 'CONFIRM' && !selectedDroneId) || isActionAnimating"
           (click)="executeAction()">
-          Yes, {{ activeActionType }}
+          <span class="material-icons icon-sm" *ngIf="!isActionAnimating">
+            {{ activeActionType === 'CONFIRM' ? 'check_circle' : 'cancel' }}
+          </span>
+          <span>{{ isActionAnimating ? 'Processing...' : ('Yes, ' + activeActionType) }}</span>
         </button>
       </div>
     </div>

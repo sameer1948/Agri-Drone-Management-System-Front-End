@@ -18,6 +18,17 @@ import { VillageService } from '../../services/village.service';
 
 type ActionType = 'CONFIRM' | 'CANCEL' | 'DELETE' | null;
 
+interface CalendarDay {
+  date: Date;
+  dateStr: string;
+  dayNumber: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  bookings: Booking[];
+  totalAcres: number;
+  isFull: boolean;
+}
+
 @Component({
   selector: 'app-operation',
   standalone: true,
@@ -26,7 +37,6 @@ type ActionType = 'CONFIRM' | 'CANCEL' | 'DELETE' | null;
   styleUrls: ['./operation.component.scss']
 })
 export class OperationComponent implements OnInit {
-
   private droneApi = inject(DroneService);
   private bookingApi = inject(BookingService);
   private logApi = inject(LogService);
@@ -35,8 +45,15 @@ export class OperationComponent implements OnInit {
   private cropApi = inject(CropService);
   private fb = inject(FormBuilder);
 
+  // Maximum single-day fleet spraying capacity
+  readonly MAX_DAILY_ACRES: number = 30;
+
+  // Primary UI is Calendar
+  activeView: 'CALENDAR' | 'TABLE' = 'CALENDAR';
+
   // Data & State
   bookings: Booking[] = [];
+  allBookingsForCalendar: Booking[] = [];
   currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
   isLoading = false;
 
@@ -55,7 +72,7 @@ export class OperationComponent implements OnInit {
   selectedStatusFilter = 'ALL';
   selectedCropFilter = 'ALL';
 
-  // Pagination & Sorting
+  // Pagination & Sorting (Table View)
   currentPage = 0;
   pageSize = 10;
   pageSizeOptions = [5, 10, 20, 50];
@@ -67,28 +84,46 @@ export class OperationComponent implements OnInit {
   availableDrones: Drone[] = [];
   selectedDroneId: string = '';
 
-  // --- Modals State ---
-  isEditModalOpen = false;
+  // Calendar State
+  currentCalendarDate: Date = new Date();
+  calendarDays: CalendarDay[] = [];
+  weekDays: string[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  todayDate: string = '';
+
+  // --- Two-Tier Dialog State ---
+  // Tier 1: Day Missions Dialog (Child of Calendar)
+  isDayMissionsDialogOpen = false;
+  selectedCalendarDay: CalendarDay | null = null;
+
+  // Tier 2: Mission Details & Actions Dialog (Child of Day Missions Dialog)
   isDetailsModalOpen = false;
   selectedBookingDetails: Booking | null = null;
+
+  // Edit Modal State
+  isEditModalOpen = false;
   editForm!: FormGroup;
   editingBooking: Booking | null = null;
   computedAmount = 0;
+  isDateLimitExceeded = false;
+  capacityErrorMessage = '';
 
-  // Confirmation Action Dialog
+  // Action Confirmation Dialog (Confirm / Cancel)
   isConfirmActionDialogOpen = false;
   activeActionType: ActionType = null;
   targetBooking: Booking | null = null;
+  isActionAnimating = false;
 
   // Toast / Snackbar
   toast = { show: false, message: '', type: 'success' };
   private toastTimer: any;
 
   ngOnInit(): void {
+    this.todayDate = new Date().toISOString().split('T')[0];
     this.initEditForm();
     this.loadDrones();
     this.loadMasterData();
     this.rateApi.getCurrentRate().subscribe(r => { if (r?.price) this.currentRate = r; });
+    this.loadCalendarDataset();
     this.loadData();
   }
 
@@ -112,7 +147,7 @@ export class OperationComponent implements OnInit {
       cropOwnerName: ['', [Validators.required, Validators.minLength(3)]],
       cropOwnerPhone: ['', [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]],
       cropVillage: ['', Validators.required],
-      cropSize: [null, [Validators.required, Validators.min(1), Validators.pattern('^[1-9][0-9]*$')]],
+      cropSize: [null, [Validators.required, Validators.min(1), Validators.max(30), Validators.pattern('^[1-9][0-9]*$')]],
       bookingStatus: ['PENDING', Validators.required],
       bookingNotes: ['']
     });
@@ -121,11 +156,42 @@ export class OperationComponent implements OnInit {
       if (dt) {
         const d = new Date(dt + 'T00:00:00');
         this.editForm.get('bookingDay')?.setValue(d.toLocaleDateString('en-US', { weekday: 'long' }), { emitEvent: false });
+        this.checkEditDateCapacity();
       }
     });
 
-    // 1 Acre = 1 Tank
-    this.editForm.get('cropSize')?.valueChanges.subscribe(() => this.recalcEditAmount());
+    this.editForm.get('cropSize')?.valueChanges.subscribe(() => {
+      this.recalcEditAmount();
+      this.checkEditDateCapacity();
+    });
+  }
+
+  checkEditDateCapacity(): void {
+    const selectedDate = this.editForm.get('bookingDate')?.value;
+    const requestedAcres = parseInt(this.editForm.get('cropSize')?.value, 10) || 0;
+    const currentBookingId = this.editingBooking?.bookingId;
+
+    if (!selectedDate) {
+      this.isDateLimitExceeded = false;
+      this.capacityErrorMessage = '';
+      return;
+    }
+
+    const currentDayAcres = this.allBookingsForCalendar
+      .filter(b => b.bookingDate === selectedDate && b.bookingStatus !== 'CANCELLED' && b.bookingId !== currentBookingId)
+      .reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
+
+    if (currentDayAcres >= this.MAX_DAILY_ACRES) {
+      this.isDateLimitExceeded = true;
+      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.MAX_DAILY_ACRES} Acres booked). Please try another day.`;
+    } else if (currentDayAcres + requestedAcres > this.MAX_DAILY_ACRES) {
+      const remaining = this.MAX_DAILY_ACRES - currentDayAcres;
+      this.isDateLimitExceeded = true;
+      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.MAX_DAILY_ACRES} Ac/day).`;
+    } else {
+      this.isDateLimitExceeded = false;
+      this.capacityErrorMessage = '';
+    }
   }
 
   loadDrones(): void {
@@ -167,38 +233,128 @@ export class OperationComponent implements OnInit {
     });
   }
 
-  private computeMetrics(pageItems: Booking[], total: number): void {
-    this.totalCount = total;
-    this.pendingCount = pageItems.filter(b => b.bookingStatus === 'PENDING').length;
-    this.confirmedCount = pageItems.filter(b => b.bookingStatus === 'CONFIRMED').length;
-    this.totalRevenue = pageItems.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  loadCalendarDataset(): void {
+    this.bookingApi.getBookings(0, 1000, 'bookingDate', 'asc').subscribe({
+      next: (res: PageResponse<Booking>) => {
+        this.allBookingsForCalendar = res.content || [];
+        this.buildCalendarMonth();
+      },
+      error: () => console.warn('Could not load calendar entries')
+    });
   }
 
-  toggleSort(column: string): void {
-    if (this.sortBy === column) {
-      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      this.sortBy = column;
-      this.sortDir = 'desc';
+  // ================= CALENDAR BUILDER =================
+  buildCalendarMonth(): void {
+    const year = this.currentCalendarDate.getFullYear();
+    const month = this.currentCalendarDate.getMonth();
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevLastDate = new Date(year, month, 0).getDate();
+
+    const days: CalendarDay[] = [];
+
+    for (let x = firstDayIndex; x > 0; x--) {
+      const d = new Date(year, month - 1, prevLastDate - x + 1);
+      days.push(this.createCalendarDayObj(d, false));
     }
-    this.loadData(0);
+
+    for (let i = 1; i <= lastDate; i++) {
+      const d = new Date(year, month, i);
+      days.push(this.createCalendarDayObj(d, true));
+    }
+
+    const remaining = 42 - days.length;
+    for (let j = 1; j <= remaining; j++) {
+      const d = new Date(year, month + 1, j);
+      days.push(this.createCalendarDayObj(d, false));
+    }
+
+    this.calendarDays = days;
   }
 
-  // --- Row Click Details Dialog ---
-  openRowDetails(booking: Booking): void {
+  private createCalendarDayObj(d: Date, isCurrentMonth: boolean): CalendarDay {
+    const y = d.getFullYear();
+    const m = ('0' + (d.getMonth() + 1)).slice(-2);
+    const day = ('0' + d.getDate()).slice(-2);
+    const dateStr = `${y}-${m}-${day}`;
+
+    const activeBookings = this.allBookingsForCalendar.filter(
+      b => b.bookingDate === dateStr && b.bookingStatus !== 'CANCELLED'
+    );
+    const totalAcres = activeBookings.reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
+
+    return {
+      date: d,
+      dateStr,
+      dayNumber: d.getDate(),
+      isCurrentMonth,
+      isToday: dateStr === this.todayDate,
+      bookings: activeBookings,
+      totalAcres,
+      isFull: totalAcres >= this.MAX_DAILY_ACRES
+    };
+  }
+
+  prevMonth(): void {
+    this.currentCalendarDate = new Date(this.currentCalendarDate.getFullYear(), this.currentCalendarDate.getMonth() - 1, 1);
+    this.buildCalendarMonth();
+  }
+
+  nextMonth(): void {
+    this.currentCalendarDate = new Date(this.currentCalendarDate.getFullYear(), this.currentCalendarDate.getMonth() + 1, 1);
+    this.buildCalendarMonth();
+  }
+
+  jumpToToday(): void {
+    this.currentCalendarDate = new Date();
+    this.buildCalendarMonth();
+  }
+
+  switchView(view: 'CALENDAR' | 'TABLE'): void {
+    this.activeView = view;
+    if (view === 'CALENDAR') {
+      this.loadCalendarDataset();
+    } else {
+      this.loadData(this.currentPage);
+    }
+  }
+
+  // --- Tier 1: Day Missions Dialog (Child of Calendar) ---
+  openDayMissionsDialog(day: CalendarDay): void {
+    this.selectedCalendarDay = day;
+    this.isDayMissionsDialogOpen = true;
+  }
+
+  // closeDayMissionsDialog(): void {
+  //   this.isDayMissionsDialogOpen = false;
+  //   this.selectedCalendarDay = null;
+  // }
+
+  // --- Tier 2: Mission Details & Actions Dialog (Child of Day Missions Dialog) ---
+  openRowDetails(booking: Booking, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
     this.selectedBookingDetails = booking;
-    this.isDetailsModalOpen = true;
+    this.isDetailsModalOpen = true; // Opens Tier 2 on top of Tier 1 cleanly
   }
 
   closeRowDetails(): void {
     this.selectedBookingDetails = null;
+    this.isDetailsModalOpen = false; // Gracefully returns user to the open Tier 1 day list
+  }
+
+  closeDayMissionsDialog(): void {
     this.isDetailsModalOpen = false;
+    this.selectedBookingDetails = null;
+    this.isDayMissionsDialogOpen = false;
+    this.selectedCalendarDay = null;
   }
 
   confirmFromDetails(): void {
     if (!this.selectedBookingDetails) return;
     const b = this.selectedBookingDetails;
-    this.closeRowDetails();
     this.openActionDialog('CONFIRM', b);
   }
 
@@ -218,12 +374,15 @@ export class OperationComponent implements OnInit {
       bookingNotes: booking.bookingNotes || ''
     });
     this.recalcEditAmount();
+    this.checkEditDateCapacity();
     this.isEditModalOpen = true;
   }
 
   closeEditModal(): void {
     this.isEditModalOpen = false;
     this.editingBooking = null;
+    this.isDateLimitExceeded = false;
+    this.capacityErrorMessage = '';
   }
 
   recalcEditAmount(): void {
@@ -232,6 +391,12 @@ export class OperationComponent implements OnInit {
   }
 
   submitEditForm(): void {
+    this.checkEditDateCapacity();
+    if (this.isDateLimitExceeded) {
+      this.showToast('Daily drone limit reached for this date. Choose another date.', 'error');
+      return;
+    }
+
     if (this.editForm.invalid || !this.editingBooking?.bookingId) return;
 
     const f = this.editForm.value;
@@ -253,7 +418,9 @@ export class OperationComponent implements OnInit {
     this.bookingApi.updateBooking(this.editingBooking.bookingId, payload).subscribe({
       next: () => {
         this.closeEditModal();
+        this.closeRowDetails();
         this.loadData(this.currentPage);
+        this.loadCalendarDataset();
         this.showToast(`Booking #${payload.bookingId} updated successfully!`, 'success');
       },
       error: () => this.showToast('Failed to update booking.', 'error')
@@ -275,15 +442,18 @@ export class OperationComponent implements OnInit {
     this.isConfirmActionDialogOpen = false;
     this.activeActionType = null;
     this.targetBooking = null;
+    this.isActionAnimating = false;
   }
 
   executeAction(): void {
     if (!this.targetBooking?.bookingId || !this.activeActionType) return;
     const id = this.targetBooking.bookingId;
+    this.isActionAnimating = true;
 
     if (this.activeActionType === 'CONFIRM') {
       if (!this.selectedDroneId) {
         this.showToast('Please select a drone to assign to this mission.', 'error');
+        this.isActionAnimating = false;
         return;
       }
 
@@ -315,30 +485,49 @@ export class OperationComponent implements OnInit {
         next: () => {
           this.bookingApi.updateBooking(id, updatedBooking).subscribe({
             next: () => {
-              this.closeActionDialog();
-              this.loadData(this.currentPage);
-              this.showToast(`✅ Booking #${id} confirmed and logged with Drone ${droneName} (${this.selectedDroneId})!`, 'success');
+              setTimeout(() => {
+                this.closeActionDialog();
+                this.closeRowDetails();
+                this.closeDayMissionsDialog();
+                this.loadData(this.currentPage);
+                this.loadCalendarDataset();
+                this.showToast(`✅ Booking #${id} confirmed and logged with Drone ${droneName} (${this.selectedDroneId})!`, 'success');
+              }, 300);
             },
-            error: () => this.showToast('Confirmation failed.', 'error')
+            error: () => {
+              this.isActionAnimating = false;
+              this.showToast('Confirmation failed.', 'error');
+            }
           });
         },
-        error: () => this.showToast('Failed to create log entry.', 'error')
+        error: () => {
+          this.isActionAnimating = false;
+          this.showToast('Failed to create log entry.', 'error');
+        }
       });
 
     } else if (this.activeActionType === 'CANCEL') {
       const updated: Booking = { ...this.targetBooking, bookingStatus: 'CANCELLED' };
       this.bookingApi.updateBooking(id, updated).subscribe({
         next: () => {
-          this.closeActionDialog();
-          this.loadData(this.currentPage);
-          this.showToast(`Booking #${id} has been CANCELLED.`, 'success');
+          setTimeout(() => {
+            this.closeActionDialog();
+            this.closeRowDetails();
+            this.closeDayMissionsDialog();
+            this.loadData(this.currentPage);
+            this.loadCalendarDataset();
+            this.showToast(`Booking #${id} has been CANCELLED.`, 'success');
+          }, 300);
         },
-        error: () => this.showToast('Cancellation failed.', 'error')
+        error: () => {
+          this.isActionAnimating = false;
+          this.showToast('Cancellation failed.', 'error');
+        }
       });
     }
   }
 
-  // --- Dynamic WhatsApp Notification ---
+  // WhatsApp Notification
   sendNotification(booking: Booking, event?: Event): void {
     if (event) event.stopPropagation();
 
@@ -354,14 +543,22 @@ export class OperationComponent implements OnInit {
     let statusNotice = '';
 
     if (booking.bookingStatus === 'CONFIRMED') {
-      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Dispatch Confirmed*';
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Dispatch Confirmed* 🛸';
       statusNotice = 'Our certified drone pilot and autonomous unit are assigned to your field. Please ensure water supply is accessible near the plot.';
     } else if (booking.bookingStatus === 'CANCELLED') {
-      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Service Cancelled*';
-      statusNotice = 'This scheduled spraying mission has been cancelled. For re-scheduling or inquiries, please contact.';
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Service Cancelled* 🛑';
+      statusNotice = 'This scheduled spraying mission has been cancelled. For re-scheduling or inquiries, please contact our support desk.';
     } else {
-      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Booking Received*';
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Booking Received* ⏳';
       statusNotice = 'Your request has been received and is pending pilot dispatch verification.';
+    }
+
+    let formattedDate = booking.bookingDate;
+    if (booking.bookingDate && booking.bookingDate.includes('-')) {
+      const parts = booking.bookingDate.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
     }
 
     const messageLines = [
@@ -369,28 +566,44 @@ export class OperationComponent implements OnInit {
       '━━━━━━━━━━━━━━━━━━━━',
       `Dear *${booking.cropOwnerName}*, details of your drone mission:`,
       '',
-      `*Date:* ${booking.bookingDate} (${booking.bookingDay})`,
-      `*Crop:* ${booking.cropName}`,
-      `*Field Area:* ${booking.cropSize} Acres (${booking.cropSize} Tanks)`,
-      `*Village / Location:* ${booking.cropVillage}`,
-      `*Rate per Tank:* ₹${booking.price}`,
-      `*Estimated Total:* ₹${booking.amount}`,
-      `*Status:* *${booking.bookingStatus}*`,
+      `📅 *Date:* ${formattedDate} (${booking.bookingDay})`,
+      `🌱 *Crop:* ${booking.cropName}`,
+      `📐 *Field Area:* ${booking.cropSize} Acres (${booking.cropSize} Tanks)`,
+      `📍 *Village / Location:* ${booking.cropVillage}`,
+      `💰 *Rate per Tank:* ₹${booking.price}`,
+      `💵 *Estimated Total:* ₹${booking.amount}`,
+      `📊 *Status:* *${booking.bookingStatus}*`,
       booking.bookingNotes ? `📝 *Notes:* ${booking.bookingNotes}\n` : '',
       '━━━━━━━━━━━━━━━━━━━━',
       statusNotice,
       '',
       '*For any queries, contact us at:* +91 9642343838, +91 9032343838',
-      '' ,
+      '',
       '_*Sri Jagadeeswara AGRI Drone Spraying!*_'
     ].filter(line => line !== null && line !== undefined);
 
     const encodedMessage = encodeURIComponent(messageLines.join('\n'));
-    const whatsappUrl = `https://wa.me/send?phone=${cleanPhone}&text=${encodedMessage}`;
+    const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
 
-    // Target a named window to redirect/reuse an existing WhatsApp Web tab
     window.open(whatsappUrl, 'whatsapp_window');
-    this.showToast(`Redirecting WhatsApp chat for ${booking.cropOwnerName}...`, 'success');
+    this.showToast(`Opening WhatsApp chat for ${booking.cropOwnerName}...`, 'success');
+  }
+
+  private computeMetrics(pageItems: Booking[], total: number): void {
+    this.totalCount = total;
+    this.pendingCount = pageItems.filter(b => b.bookingStatus === 'PENDING').length;
+    this.confirmedCount = pageItems.filter(b => b.bookingStatus === 'CONFIRMED').length;
+    this.totalRevenue = pageItems.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  }
+
+  toggleSort(column: string): void {
+    if (this.sortBy === column) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortBy = column;
+      this.sortDir = 'desc';
+    }
+    this.loadData(0);
   }
 
   showToast(message: string, type: 'success' | 'error' = 'success'): void {
