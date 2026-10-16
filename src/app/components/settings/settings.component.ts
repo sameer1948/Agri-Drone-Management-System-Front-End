@@ -9,11 +9,14 @@ import { Rate } from '../../models/rate.model';
 import { Village } from '../../models/village.model';
 import { CropService } from '../../services/crop.service';
 import { VillageService } from '../../services/village.service';
+import { MaxCapacityService } from '../../services/max-capacity.service';
+import { MaxCapacity } from '../../models/max-capacity.model';
 
-type ActiveTab = 'RATES' | 'DRONES' | 'VILLAGES' | 'CROPS';
+type ActiveTab = 'RATES' | 'CAPACITY' | 'DRONES' | 'VILLAGES' | 'CROPS';
 type ModalMode = 
   | 'CREATE_DRONE' | 'EDIT_DRONE' 
   | 'UPDATE_RATE' 
+  | 'UPDATE_CAPACITY'
   | 'CREATE_VILLAGE' | 'EDIT_VILLAGE' 
   | 'CREATE_CROP' | 'EDIT_CROP' 
   | null;
@@ -31,6 +34,7 @@ export class SettingsComponent implements OnInit {
   private rateApi = inject(RateService);
   private villageApi = inject(VillageService);
   private cropApi = inject(CropService);
+  private capacityApi = inject(MaxCapacityService);
   private fb = inject(FormBuilder);
 
   // Active section view
@@ -52,7 +56,11 @@ export class SettingsComponent implements OnInit {
   ratePageSizeOptions = [5, 10, 20];
   rateTotalPages = 1;
 
-  // --- 2. DRONE STATE ---
+  // --- 2. CAPACITY STATE (NEW) ---
+  currentCapacity: MaxCapacity = { id: 1, maxAcres: 30 };
+  isLoadingCapacity = false;
+
+  // --- 3. DRONE STATE ---
   drones: Drone[] = [];
   filteredDrones: Drone[] = [];
   pagedDrones: Drone[] = [];
@@ -66,7 +74,7 @@ export class SettingsComponent implements OnInit {
   dronePageSizeOptions = [5, 10, 20];
   droneTotalPages = 1;
 
-  // --- 3. VILLAGE STATE ---
+  // --- 4. VILLAGE STATE ---
   villages: Village[] = [];
   filteredVillages: Village[] = [];
   pagedVillages: Village[] = [];
@@ -78,7 +86,7 @@ export class SettingsComponent implements OnInit {
   villagePageSizeOptions = [5, 10, 20];
   villageTotalPages = 1;
 
-  // --- 4. CROP STATE ---
+  // --- 5. CROP STATE ---
   crops: Crop[] = [];
   filteredCrops: Crop[] = [];
   pagedCrops: Crop[] = [];
@@ -94,6 +102,7 @@ export class SettingsComponent implements OnInit {
   activeModal: ModalMode = null;
   droneForm!: FormGroup;
   rateForm!: FormGroup;
+  capacityForm!: FormGroup;
   villageForm!: FormGroup;
   cropForm!: FormGroup;
 
@@ -108,6 +117,7 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     this.initForms();
     this.fetchRateData();
+    this.fetchCapacityData();
     this.fetchDrones();
     this.fetchVillages();
     this.fetchCrops();
@@ -127,6 +137,10 @@ export class SettingsComponent implements OnInit {
       changeReason: ['Standard rate update']
     });
 
+    this.capacityForm = this.fb.group({
+      maxAcres: [30, [Validators.required, Validators.min(1), Validators.max(500), Validators.pattern('^[1-9][0-9]*$')]]
+    });
+
     this.villageForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]]
     });
@@ -138,6 +152,46 @@ export class SettingsComponent implements OnInit {
 
   setTab(tab: ActiveTab): void {
     this.currentTab = tab;
+  }
+
+  // ================= CAPACITY OPERATIONS =================
+  fetchCapacityData(): void {
+    this.isLoadingCapacity = true;
+    this.capacityApi.getMaxCapacity().subscribe({
+      next: (cap) => {
+        if (cap && cap.maxAcres) {
+          this.currentCapacity = cap;
+        }
+        this.isLoadingCapacity = false;
+      },
+      error: () => {
+        this.isLoadingCapacity = false;
+      }
+    });
+  }
+
+  openUpdateCapacityModal(): void {
+    this.capacityForm.reset({
+      maxAcres: this.currentCapacity.maxAcres
+    });
+    this.activeModal = 'UPDATE_CAPACITY';
+  }
+
+  saveCapacity(): void {
+    if (this.capacityForm.invalid) {
+      this.capacityForm.markAllAsTouched();
+      return;
+    }
+
+    const acres = Number(this.capacityForm.value.maxAcres);
+    this.capacityApi.updateMaxCapacity(acres).subscribe({
+      next: (res) => {
+        this.currentCapacity = res;
+        this.closeModal();
+        this.showToast(`Daily fleet capacity updated to ${res.maxAcres} Acres/day!`, 'success');
+      },
+      error: () => this.showToast('Failed to update daily capacity.', 'error')
+    });
   }
 
   // ================= 1. RATE OPERATIONS =================
@@ -213,7 +267,7 @@ export class SettingsComponent implements OnInit {
     });
   }
 
-  // ================= 2. DRONE OPERATIONS =================
+  // ================= 3. DRONE OPERATIONS =================
   fetchDrones(): void {
     this.isLoadingDrones = true;
     this.droneApi.getDrones().subscribe({
@@ -364,7 +418,7 @@ export class SettingsComponent implements OnInit {
     });
   }
 
-  // ================= 3. VILLAGE OPERATIONS =================
+  // ================= 4. VILLAGE OPERATIONS =================
   fetchVillages(): void {
     this.isLoadingVillages = true;
     this.villageApi.getVillages().subscribe({
@@ -424,7 +478,6 @@ export class SettingsComponent implements OnInit {
     }
 
     const trimmed = this.villageForm.value.name.trim();
-    // Client-side duplicate check
     const isDuplicate = this.villages.some(v => 
       v.name.toLowerCase() === trimmed.toLowerCase() && v.villageId !== this.editingVillageId
     );
@@ -470,7 +523,7 @@ export class SettingsComponent implements OnInit {
     });
   }
 
-  // ================= 4. CROP OPERATIONS =================
+  // ================= 5. CROP OPERATIONS =================
   fetchCrops(): void {
     this.isLoadingCrops = true;
     this.cropApi.getCrops().subscribe({
@@ -530,7 +583,6 @@ export class SettingsComponent implements OnInit {
     }
 
     const trimmed = this.cropForm.value.name.trim();
-    // Client-side duplicate check
     const isDuplicate = this.crops.some(c => 
       c.name.toLowerCase() === trimmed.toLowerCase() && c.cropId !== this.editingCropId
     );
@@ -576,7 +628,6 @@ export class SettingsComponent implements OnInit {
     });
   }
 
-  // Common Modal Closer & Toast Helpers
   closeModal(): void {
     this.activeModal = null;
     this.editingDroneId = null;
@@ -590,9 +641,7 @@ export class SettingsComponent implements OnInit {
     this.toastTimer = setTimeout(() => (this.toast.show = false), 4000);
   }
 
-  // Pagination helper methods
   getPages(total: number): number[] {
     return Array.from({ length: total }, (_, i) => i);
   }
-  
 }

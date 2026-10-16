@@ -743,3 +743,214 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ================= CAPACITY HERO CARD STYLES ================= */
+.capacity-hero-card {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 1.5rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+
+  .capacity-card-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .capacity-mat-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 1.5rem 1.75rem;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #d97706, #ea580c);
+      }
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px -5px rgba(15, 23, 42, 0.12);
+      }
+    }
+
+    .live-dot.orange {
+      background-color: #ea580c;
+      box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.25);
+    }
+
+    .card-corner-glyph.warning {
+      color: #ea580c;
+      opacity: 0.85;
+    }
+
+    .capacity-value-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin: 0.75rem 0;
+
+      .capacity-number {
+        margin: 0;
+        font-size: 3.5rem;
+        font-weight: 900;
+        line-height: 1;
+        color: #0f172a;
+        letter-spacing: -0.03em;
+      }
+
+      .capacity-unit {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #64748b;
+      }
+    }
+
+    .capacity-desc {
+      font-size: 0.84rem;
+      color: #475569;
+      line-height: 1.5;
+      margin: 0 0 1.25rem 0;
+    }
+
+    .capacity-meta {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+
+      .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.84rem;
+        color: #475569;
+
+        .meta-icon {
+          font-size: 1.05rem;
+          color: #ea580c;
+        }
+
+        strong {
+          color: #0f172a;
+        }
+      }
+    }
+
+    .btn-revise-capacity {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: #ffffff;
+      border: none;
+      padding: 11px 18px;
+      border-radius: 9px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: linear-gradient(135deg, #b45309, #92400e);
+        transform: translateY(-1px);
+      }
+    }
+  }
+
+  .capacity-guidelines-side {
+    display: flex;
+    align-items: center;
+
+    .guidelines-card {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 100%;
+
+      .guide-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 1rem;
+
+        .guide-icon {
+          font-size: 1.4rem;
+          color: #b45309;
+        }
+
+        h4 {
+          margin: 0;
+          font-size: 1.05rem;
+          color: #92400e;
+          font-weight: 800;
+        }
+      }
+
+      .guide-list {
+        margin: 0;
+        padding-left: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+
+        li {
+          font-size: 0.85rem;
+          color: #78350f;
+          line-height: 1.5;
+
+          strong {
+            color: #451a03;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Modal header and button for capacity */
+.header-capacity {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+}
+
+.btn-capacity {
+  background: #d97706 !important;
+  color: white !important;
+
+  &:hover {
+    background: #b45309 !important;
+  }
+}
+
+.field-symbol {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+@media (max-width: 868px) {
+  .capacity-hero-card {
+    grid-template-columns: 1fr;
+  }
+}

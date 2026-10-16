@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { Rate } from '../../models/rate.model';
 import { RateService } from '../../services/rate.service';
-import { Booking, BookingStatus } from '../../models/booking.model';
+import { Booking } from '../../models/booking.model';
 import { PageResponse } from '../../models/drone.model';
 import { BookingService } from '../../services/booking.service';
 import { Crop } from '../../models/crop.model';
 import { Village } from '../../models/village.model';
 import { CropService } from '../../services/crop.service';
 import { VillageService } from '../../services/village.service';
+import { MaxCapacityService } from '../../services/max-capacity.service';
 
 interface ToastState {
   show: boolean;
@@ -36,14 +37,16 @@ interface CalendarDay {
   styleUrls: ['./booking.component.scss']
 })
 export class BookingComponent implements OnInit {
+
   private fb = inject(FormBuilder);
   private bookingApi = inject(BookingService);
   private rateApi = inject(RateService);
   private villageApi = inject(VillageService);
   private cropApi = inject(CropService);
+  private capacityApi = inject(MaxCapacityService);
 
   // Maximum acreage a drone fleet can spray in a single day
-  readonly MAX_DAILY_ACRES: number = 30;
+  maxDailyAcres: number = 30;
 
   // View Toggle ('TABLE' | 'CALENDAR')
   activeView: 'TABLE' | 'CALENDAR' = 'CALENDAR';
@@ -99,6 +102,7 @@ export class BookingComponent implements OnInit {
   calculatedAmount: number = 0;
 
   ngOnInit(): void {
+    this.loadCapacity();
     this.todayDate = new Date().toISOString().split('T')[0];
     this.loadRate();
     this.loadMasterData();
@@ -107,15 +111,28 @@ export class BookingComponent implements OnInit {
     this.loadCalendarDataset();
   }
 
+  loadCapacity(): void {
+    this.capacityApi.getMaxCapacity().subscribe({
+      next: (cap) => {
+        if (cap?.maxAcres) {
+          this.maxDailyAcres = cap.maxAcres;
+          // Re-evaluate calendar or form capacity checks
+          if (this.buildCalendarMonth) this.buildCalendarMonth();
+        }
+      },
+      error: () => this.showToast('Could not fetch capacity limit. Using default 30.', 'error') 
+    });
+  }
+
   loadMasterData(): void {
     this.cropApi.getCrops().subscribe({
       next: (data) => (this.crops = data || []),
-      error: (err) => console.error('Failed to load crops:', err)
+      error: (err) => this.showToast(`Failed to load crops:${err}`, 'error')
     });
 
     this.villageApi.getVillages().subscribe({
       next: (data) => (this.villages = data || []),
-      error: (err) => console.error('Failed to load villages:', err)
+      error: (err) => this.showToast(`Failed to load villages: ${err}`, 'error')
     });
   }
 
@@ -127,7 +144,7 @@ export class BookingComponent implements OnInit {
           this.recalculatePrice();
         }
       },
-      error: () => console.warn('Failed to fetch rate. Defaulting to ₹250/tank.')
+      error: () => this.showToast('Failed to fetch rate. Defaulting to ₹250/tank.', 'error')
     });
   }
 
@@ -181,13 +198,13 @@ export class BookingComponent implements OnInit {
       .filter(b => b.bookingDate === selectedDate && b.bookingStatus !== 'CANCELLED')
       .reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
 
-    if (currentDayAcres >= this.MAX_DAILY_ACRES) {
+    if (currentDayAcres >= this.maxDailyAcres) {
       this.isDateLimitExceeded = true;
-      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.MAX_DAILY_ACRES} Acres booked). Please try another day.`;
-    } else if (currentDayAcres + requestedAcres > this.MAX_DAILY_ACRES) {
-      const remaining = this.MAX_DAILY_ACRES - currentDayAcres;
+      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.maxDailyAcres} Acres booked). Please try another day.`;
+    } else if (currentDayAcres + requestedAcres > this.maxDailyAcres) {
+      const remaining = this.maxDailyAcres - currentDayAcres;
       this.isDateLimitExceeded = true;
-      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.MAX_DAILY_ACRES} Ac/day).`;
+      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.maxDailyAcres} Ac/day).`;
     } else {
       this.isDateLimitExceeded = false;
       this.capacityErrorMessage = '';
@@ -240,7 +257,7 @@ export class BookingComponent implements OnInit {
         this.allBookingsForCalendar = res.content || [];
         this.buildCalendarMonth();
       },
-      error: () => console.warn('Could not load calendar entries')
+      error: () => this.showToast('Could not load calendar entries', 'error')
     });
   }
 
@@ -296,7 +313,7 @@ export class BookingComponent implements OnInit {
       isToday: dateStr === this.todayDate,
       bookings: activeBookings,
       totalAcres,
-      isFull: totalAcres >= this.MAX_DAILY_ACRES
+      isFull: totalAcres >= this.maxDailyAcres
     };
   }
 

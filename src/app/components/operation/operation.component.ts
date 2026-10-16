@@ -15,6 +15,7 @@ import { Crop } from '../../models/crop.model';
 import { Village } from '../../models/village.model';
 import { CropService } from '../../services/crop.service';
 import { VillageService } from '../../services/village.service';
+import { MaxCapacityService } from '../../services/max-capacity.service';
 
 type ActionType = 'CONFIRM' | 'CANCEL' | 'DELETE' | null;
 
@@ -37,16 +38,18 @@ interface CalendarDay {
   styleUrls: ['./operation.component.scss']
 })
 export class OperationComponent implements OnInit {
+
   private droneApi = inject(DroneService);
   private bookingApi = inject(BookingService);
   private logApi = inject(LogService);
   private rateApi = inject(RateService);
   private villageApi = inject(VillageService);
   private cropApi = inject(CropService);
+  private capacityApi = inject(MaxCapacityService);
   private fb = inject(FormBuilder);
 
   // Maximum single-day fleet spraying capacity
-  readonly MAX_DAILY_ACRES: number = 30;
+  maxDailyAcres: number = 30;
 
   // Primary UI is Calendar
   activeView: 'CALENDAR' | 'TABLE' = 'CALENDAR';
@@ -118,6 +121,7 @@ export class OperationComponent implements OnInit {
   private toastTimer: any;
 
   ngOnInit(): void {
+    this.loadCapacity();
     this.todayDate = new Date().toISOString().split('T')[0];
     this.initEditForm();
     this.loadDrones();
@@ -127,15 +131,28 @@ export class OperationComponent implements OnInit {
     this.loadData();
   }
 
+  loadCapacity(): void {
+    this.capacityApi.getMaxCapacity().subscribe({
+      next: (cap) => {
+        if (cap?.maxAcres) {
+          this.maxDailyAcres = cap.maxAcres;
+          // Re-evaluate calendar or form capacity checks
+          if (this.buildCalendarMonth) this.buildCalendarMonth();
+        }
+      },
+      error: () => this.showToast('Could not fetch capacity limit. Using default 30.', 'error') 
+    });
+  }
+
   loadMasterData(): void {
     this.cropApi.getCrops().subscribe({
       next: (data) => (this.cropsList = data || []),
-      error: (err) => console.error('Failed to load crops:', err)
+      error: (err) => this.showToast(`Failed to load crops: ${err}`, 'error')
     });
 
     this.villageApi.getVillages().subscribe({
       next: (data) => (this.villagesList = data || []),
-      error: (err) => console.error('Failed to load villages:', err)
+      error: (err) => this.showToast(`Failed to load villages: ${err}`, 'error')
     });
   }
 
@@ -181,13 +198,13 @@ export class OperationComponent implements OnInit {
       .filter(b => b.bookingDate === selectedDate && b.bookingStatus !== 'CANCELLED' && b.bookingId !== currentBookingId)
       .reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
 
-    if (currentDayAcres >= this.MAX_DAILY_ACRES) {
+    if (currentDayAcres >= this.maxDailyAcres) {
       this.isDateLimitExceeded = true;
-      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.MAX_DAILY_ACRES} Acres booked). Please try another day.`;
-    } else if (currentDayAcres + requestedAcres > this.MAX_DAILY_ACRES) {
-      const remaining = this.MAX_DAILY_ACRES - currentDayAcres;
+      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.maxDailyAcres} Acres booked). Please try another day.`;
+    } else if (currentDayAcres + requestedAcres > this.maxDailyAcres) {
+      const remaining = this.maxDailyAcres - currentDayAcres;
       this.isDateLimitExceeded = true;
-      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.MAX_DAILY_ACRES} Ac/day).`;
+      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.maxDailyAcres} Ac/day).`;
     } else {
       this.isDateLimitExceeded = false;
       this.capacityErrorMessage = '';
@@ -202,7 +219,7 @@ export class OperationComponent implements OnInit {
           this.selectedDroneId = this.availableDrones[0].droneId;
         }
       },
-      error: (err) => console.error('Failed to load drones', err)
+      error: (err) => this.showToast(`Failed to load drones : ${err}`, 'error')
     });
   }
 
@@ -239,7 +256,7 @@ export class OperationComponent implements OnInit {
         this.allBookingsForCalendar = res.content || [];
         this.buildCalendarMonth();
       },
-      error: () => console.warn('Could not load calendar entries')
+      error: () => this.showToast('Could not load calendar entries', 'error')
     });
   }
 
@@ -292,7 +309,7 @@ export class OperationComponent implements OnInit {
       isToday: dateStr === this.todayDate,
       bookings: activeBookings,
       totalAcres,
-      isFull: totalAcres >= this.MAX_DAILY_ACRES
+      isFull: totalAcres >= this.maxDailyAcres
     };
   }
 
@@ -325,11 +342,6 @@ export class OperationComponent implements OnInit {
     this.selectedCalendarDay = day;
     this.isDayMissionsDialogOpen = true;
   }
-
-  // closeDayMissionsDialog(): void {
-  //   this.isDayMissionsDialogOpen = false;
-  //   this.selectedCalendarDay = null;
-  // }
 
   // --- Tier 2: Mission Details & Actions Dialog (Child of Day Missions Dialog) ---
   openRowDetails(booking: Booking, event?: Event): void {
@@ -583,7 +595,7 @@ export class OperationComponent implements OnInit {
     ].filter(line => line !== null && line !== undefined);
 
     const encodedMessage = encodeURIComponent(messageLines.join('\n'));
-    const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/send?phone=${cleanPhone}&text=${encodedMessage}`;
 
     window.open(whatsappUrl, 'whatsapp_window');
     this.showToast(`Opening WhatsApp chat for ${booking.cropOwnerName}...`, 'success');

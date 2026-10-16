@@ -53,7 +53,7 @@
     </div>
     <div class="capacity-info">
       <span class="material-icons strip-icon">speed</span>
-      <span>Daily Fleet Limit: <strong>{{ MAX_DAILY_ACRES }} Acres / Day</strong> Max Spray Coverage</span>
+      <span>Daily Fleet Limit: <strong>{{ maxDailyAcres }} Acres / Day</strong> Max Spray Coverage</span>
     </div>
   </div>
 
@@ -103,7 +103,7 @@
     <div class="capacity-legend">
       <span class="legend-item"><span class="dot available"></span> Available (&lt;20 Ac)</span>
       <span class="legend-item"><span class="dot high"></span> High Load (20-29 Ac)</span>
-      <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ MAX_DAILY_ACRES }} Ac)</span>
+      <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ maxDailyAcres }} Ac)</span>
     </div>
 
     <!-- Day Names Header -->
@@ -125,7 +125,7 @@
         <div class="day-top">
           <span class="day-num">{{ day.dayNumber }}</span>
           <span class="capacity-badge" *ngIf="day.totalAcres > 0" [class.badge-full]="day.isFull">
-            {{ day.totalAcres }}/{{ MAX_DAILY_ACRES }} Ac
+            {{ day.totalAcres }}/{{ maxDailyAcres }} Ac
           </span>
         </div>
 
@@ -344,7 +344,7 @@
           <div>
             <h3>Scheduled Missions for {{ selectedCalendarDay?.dateStr | date:'fullDate' }}</h3>
             <span class="capacity-subtitle" [class.full-warn]="selectedCalendarDay?.isFull">
-              Capacity: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ MAX_DAILY_ACRES }} Acres Sprayed</strong>
+              Capacity: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ maxDailyAcres }} Acres Sprayed</strong>
             </span>
           </div>
         </div>
@@ -356,7 +356,7 @@
           <span class="material-icons">report</span>
           <div>
             <strong>Bookings Full for this Date!</strong>
-            <p>Maximum daily limit of {{ MAX_DAILY_ACRES }} acres reached for pilot and battery duty cycles.</p>
+            <p>Maximum daily limit of {{ maxDailyAcres }} acres reached for pilot and battery duty cycles.</p>
           </div>
         </div>
 
@@ -609,7 +609,7 @@
               formControlName="cropSize" 
               placeholder="e.g. 5"
               [class.error-input]="isDateLimitExceeded">
-            <small class="hint">1 Acre = 1 Tank (Max {{ MAX_DAILY_ACRES }} Ac/day limit)</small>
+            <small class="hint">1 Acre = 1 Tank (Max {{ maxDailyAcres }} Ac/day limit)</small>
           </div>
 
           <div class="field">

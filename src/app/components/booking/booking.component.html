@@ -57,7 +57,7 @@
     </div>
     <div class="capacity-info">
       <span class="material-icons strip-icon">speed</span>
-      <span>Daily Max Capacity: <strong>{{ MAX_DAILY_ACRES }} Acres / Day</strong> per pilot unit</span>
+      <span>Daily Max Capacity: <strong>{{ maxDailyAcres }} Acres / Day</strong> per pilot unit</span>
     </div>
   </div>
 
@@ -215,7 +215,7 @@
     <div class="capacity-legend">
       <span class="legend-item"><span class="dot available"></span> Available</span>
       <span class="legend-item"><span class="dot high"></span> Near Capacity (&gt;20 Ac)</span>
-      <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ MAX_DAILY_ACRES }} Ac)</span>
+      <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ maxDailyAcres }} Ac)</span>
     </div>
 
     <!-- Day Header Row -->
@@ -237,7 +237,7 @@
         <div class="day-top">
           <span class="day-num">{{ day.dayNumber }}</span>
           <span class="capacity-badge" *ngIf="day.totalAcres > 0" [class.badge-full]="day.isFull">
-            {{ day.totalAcres }}/{{ MAX_DAILY_ACRES }} Ac
+            {{ day.totalAcres }}/{{ maxDailyAcres }} Ac
           </span>
         </div>
 
@@ -276,7 +276,7 @@
           <div>
             <h3>Bookings for {{ selectedCalendarDay?.dateStr | date:'fullDate' }}</h3>
             <span class="capacity-pill" [class.pill-full]="selectedCalendarDay?.isFull">
-              Sprayed: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ MAX_DAILY_ACRES }} Acres</strong>
+              Sprayed: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ maxDailyAcres }} Acres</strong>
             </span>
           </div>
         </div>
@@ -287,7 +287,7 @@
         <div class="full-capacity-alert" *ngIf="selectedCalendarDay?.isFull">
           <span class="material-icons">error</span>
           <div>
-            <strong>Daily Limit Reached ({{ MAX_DAILY_ACRES }} Acres Max)</strong>
+            <strong>Daily Limit Reached ({{ maxDailyAcres }} Acres Max)</strong>
             <p>Bookings are full for this day. Autonomous flight battery and payload duty cycles are fully utilized.</p>
           </div>
         </div>
@@ -349,7 +349,7 @@
           <span class="material-icons modal-icon">flight_takeoff</span>
           <div>
             <h3>Book a Drone Spraying Service</h3>
-            <p>Schedule autonomous aerial mission parameters (Max: {{ MAX_DAILY_ACRES }} Ac/day)</p>
+            <p>Schedule autonomous aerial mission parameters (Max: {{ maxDailyAcres }} Ac/day)</p>
           </div>
         </div>
         <button class="btn-close-modal" (click)="closeModal()">✕</button>
