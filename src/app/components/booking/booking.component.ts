@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { Rate } from '../../models/rate.model';
 import { RateService } from '../../services/rate.service';
-import { Booking } from '../../models/booking.model';
+import { Booking, BookingStatus } from '../../models/booking.model';
 import { PageResponse } from '../../models/drone.model';
 import { BookingService } from '../../services/booking.service';
 import { Crop } from '../../models/crop.model';
@@ -17,6 +17,17 @@ interface ToastState {
   type: 'success' | 'error';
 }
 
+interface CalendarDay {
+  date: Date;
+  dateStr: string; // YYYY-MM-DD
+  dayNumber: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  bookings: Booking[];
+  totalAcres: number;
+  isFull: boolean;
+}
+
 @Component({
   selector: 'app-booking',
   standalone: true,
@@ -25,14 +36,20 @@ interface ToastState {
   styleUrls: ['./booking.component.scss']
 })
 export class BookingComponent implements OnInit {
-
   private fb = inject(FormBuilder);
   private bookingApi = inject(BookingService);
   private rateApi = inject(RateService);
   private villageApi = inject(VillageService);
   private cropApi = inject(CropService);
 
+  // Maximum acreage a drone fleet can spray in a single day
+  readonly MAX_DAILY_ACRES: number = 30;
+
+  // View Toggle ('TABLE' | 'CALENDAR')
+  activeView: 'TABLE' | 'CALENDAR' = 'CALENDAR';
+
   bookings: Booking[] = [];
+  allBookingsForCalendar: Booking[] = [];
   currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
   isLoading: boolean = false;
 
@@ -52,17 +69,26 @@ export class BookingComponent implements OnInit {
   isModalOpen: boolean = false;
   bookingForm!: FormGroup;
 
+  // Day Bookings Details Dialog (from Calendar click)
+  isDayDetailsOpen: boolean = false;
+  selectedCalendarDay: CalendarDay | null = null;
+
+  // Calendar State
+  currentCalendarDate: Date = new Date();
+  calendarDays: CalendarDay[] = [];
+  weekDays: string[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Daily capacity error state for form
+  isDateLimitExceeded: boolean = false;
+  capacityErrorMessage: string = '';
+
   // Toast State
-  toast: ToastState = {
-    show: false,
-    message: '',
-    type: 'success'
-  };
+  toast: ToastState = { show: false, message: '', type: 'success' };
   private toastTimer: any = null;
 
   // Pagination State
   currentPage: number = 0;
-  pageSize: number = 5;
+  pageSize: number = 10;
   totalElements: number = 0;
   totalPages: number = 0;
   isFirstPage: boolean = true;
@@ -78,6 +104,7 @@ export class BookingComponent implements OnInit {
     this.loadMasterData();
     this.initForm();
     this.loadBookings();
+    this.loadCalendarDataset();
   }
 
   loadMasterData(): void {
@@ -100,9 +127,7 @@ export class BookingComponent implements OnInit {
           this.recalculatePrice();
         }
       },
-      error: () => {
-        console.warn('Failed to fetch rate. Defaulting to ₹250/tank.');
-      }
+      error: () => console.warn('Failed to fetch rate. Defaulting to ₹250/tank.')
     });
   }
 
@@ -113,41 +138,60 @@ export class BookingComponent implements OnInit {
       cropName: ['', Validators.required],
       cropOwnerName: ['', [Validators.required, Validators.minLength(3)]],
       cropVillage: ['', Validators.required],
-      cropOwnerPhone: [
-        '',
-        [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]
-      ],
-      // Integer whole numbers only (1, 2, 3...)
-      cropSize: [
-        null,
-        [
-          Validators.required,
-          Validators.min(1),
-          Validators.max(500),
-          Validators.pattern('^[1-9][0-9]*$')
-        ]
-      ],
+      cropOwnerPhone: ['', [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]],
+      cropSize: [null, [Validators.required, Validators.min(1), Validators.max(30), Validators.pattern('^[1-9][0-9]*$')]],
       bookingNotes: [''],
       bookingStatus: ['PENDING']
     });
 
-    // Auto-compute day of the week from selected date
     this.bookingForm.get('bookingDate')?.valueChanges.subscribe((dateStr) => {
       if (dateStr) {
         const d = new Date(dateStr + 'T00:00:00');
         const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
         this.bookingForm.get('bookingDay')?.setValue(dayName, { emitEvent: false });
+        this.checkDateCapacity();
       }
     });
 
-    // 1 Acre = 1 Tank calculation
-    this.bookingForm.get('cropSize')?.valueChanges.subscribe(() => this.recalculatePrice());
+    this.bookingForm.get('cropSize')?.valueChanges.subscribe(() => {
+      this.recalculatePrice();
+      this.checkDateCapacity();
+    });
   }
 
   recalculatePrice(): void {
     const acres = parseInt(this.bookingForm.get('cropSize')?.value, 10) || 0;
-    // 1 Acre consumes 1 Tank
     this.calculatedAmount = acres * (this.currentRate.price || 250);
+  }
+
+  /**
+   * Validates if the selected date already reached or would exceed 30 Acres
+   */
+  checkDateCapacity(): void {
+    const selectedDate = this.bookingForm.get('bookingDate')?.value;
+    const requestedAcres = parseInt(this.bookingForm.get('cropSize')?.value, 10) || 0;
+
+    if (!selectedDate) {
+      this.isDateLimitExceeded = false;
+      this.capacityErrorMessage = '';
+      return;
+    }
+
+    const currentDayAcres = this.allBookingsForCalendar
+      .filter(b => b.bookingDate === selectedDate && b.bookingStatus !== 'CANCELLED')
+      .reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
+
+    if (currentDayAcres >= this.MAX_DAILY_ACRES) {
+      this.isDateLimitExceeded = true;
+      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.MAX_DAILY_ACRES} Acres booked). Please try another day.`;
+    } else if (currentDayAcres + requestedAcres > this.MAX_DAILY_ACRES) {
+      const remaining = this.MAX_DAILY_ACRES - currentDayAcres;
+      this.isDateLimitExceeded = true;
+      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.MAX_DAILY_ACRES} Ac/day).`;
+    } else {
+      this.isDateLimitExceeded = false;
+      this.capacityErrorMessage = '';
+    }
   }
 
   loadBookings(page: number = this.currentPage): void {
@@ -187,6 +231,119 @@ export class BookingComponent implements OnInit {
     });
   }
 
+  /**
+   * Pulls unpaginated records for the calendar
+   */
+  loadCalendarDataset(): void {
+    this.bookingApi.getBookings(0, 1000, 'bookingDate', 'asc').subscribe({
+      next: (res: PageResponse<Booking>) => {
+        this.allBookingsForCalendar = res.content || [];
+        this.buildCalendarMonth();
+      },
+      error: () => console.warn('Could not load calendar entries')
+    });
+  }
+
+  // ================= CALENDAR BUILDER =================
+  buildCalendarMonth(): void {
+    const year = this.currentCalendarDate.getFullYear();
+    const month = this.currentCalendarDate.getMonth();
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevLastDate = new Date(year, month, 0).getDate();
+
+    const days: CalendarDay[] = [];
+
+    // 1. Previous month buffer days
+    for (let x = firstDayIndex; x > 0; x--) {
+      const d = new Date(year, month - 1, prevLastDate - x + 1);
+      days.push(this.createCalendarDayObj(d, false));
+    }
+
+    // 2. Current month days
+    for (let i = 1; i <= lastDate; i++) {
+      const d = new Date(year, month, i);
+      days.push(this.createCalendarDayObj(d, true));
+    }
+
+    // 3. Next month trailing buffer days (to fill 42 cells grid)
+    const remaining = 42 - days.length;
+    for (let j = 1; j <= remaining; j++) {
+      const d = new Date(year, month + 1, j);
+      days.push(this.createCalendarDayObj(d, false));
+    }
+
+    this.calendarDays = days;
+  }
+
+  private createCalendarDayObj(d: Date, isCurrentMonth: boolean): CalendarDay {
+    const y = d.getFullYear();
+    const m = ('0' + (d.getMonth() + 1)).slice(-2);
+    const day = ('0' + d.getDate()).slice(-2);
+    const dateStr = `${y}-${m}-${day}`;
+
+    const activeBookings = this.allBookingsForCalendar.filter(
+      b => b.bookingDate === dateStr && b.bookingStatus !== 'CANCELLED'
+    );
+    const totalAcres = activeBookings.reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
+
+    return {
+      date: d,
+      dateStr,
+      dayNumber: d.getDate(),
+      isCurrentMonth,
+      isToday: dateStr === this.todayDate,
+      bookings: activeBookings,
+      totalAcres,
+      isFull: totalAcres >= this.MAX_DAILY_ACRES
+    };
+  }
+
+  prevMonth(): void {
+    this.currentCalendarDate = new Date(this.currentCalendarDate.getFullYear(), this.currentCalendarDate.getMonth() - 1, 1);
+    this.buildCalendarMonth();
+  }
+
+  nextMonth(): void {
+    this.currentCalendarDate = new Date(this.currentCalendarDate.getFullYear(), this.currentCalendarDate.getMonth() + 1, 1);
+    this.buildCalendarMonth();
+  }
+
+  jumpToToday(): void {
+    this.currentCalendarDate = new Date();
+    this.buildCalendarMonth();
+  }
+
+  // --- Click on Calendar Tile opens Day Details Dialog ---
+  openDayDetails(day: CalendarDay): void {
+    this.selectedCalendarDay = day;
+    this.isDayDetailsOpen = true;
+  }
+
+  closeDayDetails(): void {
+    this.isDayDetailsOpen = false;
+    this.selectedCalendarDay = null;
+  }
+
+  // Quick Book button directly from selected date in calendar
+  bookForSpecificDate(dateStr: string): void {
+    this.closeDayDetails();
+    this.openCreateModal();
+    this.bookingForm.patchValue({ bookingDate: dateStr });
+    this.checkDateCapacity();
+  }
+
+  // ================= VIEW TOGGLE =================
+  switchView(view: 'TABLE' | 'CALENDAR'): void {
+    this.activeView = view;
+    if (view === 'CALENDAR') {
+      this.loadCalendarDataset();
+    } else {
+      this.loadBookings(this.currentPage);
+    }
+  }
+
   setSort(column: keyof Booking): void {
     if (this.sortBy === column) {
       this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
@@ -220,6 +377,8 @@ export class BookingComponent implements OnInit {
   }
 
   openCreateModal(): void {
+    this.isDateLimitExceeded = false;
+    this.capacityErrorMessage = '';
     this.bookingForm.reset({
       bookingDate: this.todayDate,
       bookingDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
@@ -232,6 +391,7 @@ export class BookingComponent implements OnInit {
       bookingStatus: 'PENDING'
     });
     this.recalculatePrice();
+    this.checkDateCapacity();
     this.isModalOpen = true;
   }
 
@@ -240,6 +400,13 @@ export class BookingComponent implements OnInit {
   }
 
   saveBooking(): void {
+    this.checkDateCapacity();
+
+    if (this.isDateLimitExceeded) {
+      this.showToast('Daily drone spraying limit reached for this date. Choose another day.', 'error');
+      return;
+    }
+
     if (this.bookingForm.invalid) {
       this.bookingForm.markAllAsTouched();
       this.showToast('Please correct validation errors before submitting.', 'error');
@@ -265,6 +432,7 @@ export class BookingComponent implements OnInit {
       next: () => {
         this.closeModal();
         this.loadBookings(0);
+        this.loadCalendarDataset();
         this.showToast('🎉 Drone spraying service booked successfully!', 'success');
       },
       error: (err) => {
@@ -277,13 +445,10 @@ export class BookingComponent implements OnInit {
   showToast(message: string, type: 'success' | 'error'): void {
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toast = { show: true, message, type };
-    this.toastTimer = setTimeout(() => {
-      this.toast.show = false;
-    }, 4000);
+    this.toastTimer = setTimeout(() => (this.toast.show = false), 4000);
   }
 
   closeToast(): void {
     this.toast.show = false;
   }
-  
 }

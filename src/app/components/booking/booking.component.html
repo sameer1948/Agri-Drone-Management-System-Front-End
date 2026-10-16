@@ -1,8 +1,8 @@
 <div class="booking-dashboard-wrapper">
-  <!-- Toast / Snackbar Notification -->
+  <!-- Toast Notification -->
   <div *ngIf="toast.show" class="snackbar-container" [ngClass]="'toast-' + toast.type">
     <div class="snackbar-content">
-      <span class="toast-icon">{{ toast.type === 'success' ? '✅' : '⚠️' }}</span>
+      <span class="material-icons toast-icon">{{ toast.type === 'success' ? 'check_circle' : 'warning' }}</span>
       <span class="toast-message">{{ toast.message }}</span>
     </div>
     <button class="btn-close-toast" (click)="closeToast()">✕</button>
@@ -12,13 +12,36 @@
   <header class="page-header">
     <div class="header-left">
       <div class="title-with-pill">
-        <h1>Drone Spraying Bookings</h1>
-        <span class="count-badge">{{ totalElements }} Scheduled</span>
+        <h1>Drone Spraying Schedule</h1>
+        <span class="count-badge">
+          <span class="material-icons icon-sm">flight</span>
+          {{ totalElements }} Missions
+        </span>
       </div>
-      <p>Manage, track, and schedule autonomous aerial crop fertilizer spray missions</p>
+      <p>Schedule autonomous aerial crop spray missions with real-time daily capacity management</p>
     </div>
 
     <div class="header-right">
+      <!-- VIEW TOGGLE BUTTONS (CALENDAR vs TABLE) -->
+      <div class="view-toggle-group">
+        <button 
+          type="button" 
+          class="btn-toggle" 
+          [class.active]="activeView === 'CALENDAR'" 
+          (click)="switchView('CALENDAR')">
+          <span class="material-icons">calendar_month</span>
+          <span>Calendar</span>
+        </button>
+        <button 
+          type="button" 
+          class="btn-toggle" 
+          [class.active]="activeView === 'TABLE'" 
+          (click)="switchView('TABLE')">
+          <span class="material-icons">table_rows</span>
+          <span>Table</span>
+        </button>
+      </div>
+
       <button class="btn-primary-action" (click)="openCreateModal()">
         <span class="material-icons btn-icon">add</span>
         <span>Book a Service</span>
@@ -26,15 +49,20 @@
     </div>
   </header>
 
-  <!-- Rate & Info Strip -->
+  <!-- Rate & Daily Capacity Banner -->
   <div class="rate-strip">
     <div class="rate-info">
-      <span>Active Drone Spray Rate: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</span>
+      <span class="material-icons strip-icon">payments</span>
+      <span>Rate: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</span>
+    </div>
+    <div class="capacity-info">
+      <span class="material-icons strip-icon">speed</span>
+      <span>Daily Max Capacity: <strong>{{ MAX_DAILY_ACRES }} Acres / Day</strong> per pilot unit</span>
     </div>
   </div>
 
   <!-- ================= SEARCH & FILTER TOOLBAR ================= -->
-  <section class="filter-strip">
+  <section class="filter-strip" *ngIf="activeView === 'TABLE'">
     <div class="search-box">
       <span class="material-icons search-icon">search</span>
       <input 
@@ -47,39 +75,23 @@
     <div class="status-filters">
       <label>Status:</label>
       <div class="pill-group">
-        <button 
-          [class.active]="statusFilter === 'ALL'" 
-          (click)="statusFilter = 'ALL'; onFilterChange()">
-          All
-        </button>
-        <button 
-          [class.active]="statusFilter === 'PENDING'" 
-          (click)="statusFilter = 'PENDING'; onFilterChange()">
-          Pending
-        </button>
-        <button 
-          [class.active]="statusFilter === 'CONFIRMED'" 
-          (click)="statusFilter = 'CONFIRMED'; onFilterChange()">
-          Confirmed
-        </button>
-        <button 
-          [class.active]="statusFilter === 'CANCELLED'" 
-          (click)="statusFilter = 'CANCELLED'; onFilterChange()">
-          Cancelled
-        </button>
+        <button [class.active]="statusFilter === 'ALL'" (click)="statusFilter = 'ALL'; onFilterChange()">All</button>
+        <button [class.active]="statusFilter === 'PENDING'" (click)="statusFilter = 'PENDING'; onFilterChange()">Pending</button>
+        <button [class.active]="statusFilter === 'CONFIRMED'" (click)="statusFilter = 'CONFIRMED'; onFilterChange()">Confirmed</button>
+        <button [class.active]="statusFilter === 'CANCELLED'" (click)="statusFilter = 'CANCELLED'; onFilterChange()">Cancelled</button>
       </div>
     </div>
   </section>
 
-  <!-- Bookings Data Table Card -->
-  <div class="table-card">
+  <!-- ================= VIEW 1: TABLE VIEW ================= -->
+  <div class="table-card" *ngIf="activeView === 'TABLE'">
     <div *ngIf="isLoading" class="loading-state">
       <div class="spinner"></div>
       <p>Fetching scheduled bookings...</p>
     </div>
 
     <div *ngIf="!isLoading && bookings.length === 0" class="empty-state">
-      <span class="empty-icon">🌱</span>
+      <span class="material-icons empty-icon">eco</span>
       <h3>No Bookings Found</h3>
       <p>Schedule your first drone spraying mission by clicking the button below.</p>
       <button class="btn-primary-action" (click)="openCreateModal()">Book a Service Now</button>
@@ -93,20 +105,16 @@
               # Serial <span class="sort-indicator">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('bookingDate')">
-              Date & Day <span class="sort-indicator">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Date & Schedule <span class="sort-indicator">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('cropOwnerName')">
-              Farmer / Owner <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Farmer / Contact <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
-            <th>Phone</th>
             <th class="sortable" (click)="setSort('cropName')">
-              Crop <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Crop & Village <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('cropSize')">
               Land (Acres) <span class="sort-indicator">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th class="sortable" (click)="setSort('cropVillage')">
-              Village <span class="sort-indicator">{{ sortBy === 'cropVillage' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th>Rate / Tank</th>
             <th class="sortable" (click)="setSort('amount')">
@@ -118,25 +126,25 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let b of bookings">
+          <tr *ngFor="let b of bookings" [class.cancelled-row]="b.bookingStatus === 'CANCELLED'">
             <td class="serial-col">#{{ b.bookingId }}</td>
             <td>
               <div class="date-cell">
-                <span class="date-str">{{ b.bookingDate }}</span>
+                <span class="date-str">{{ b.bookingDate | date:'dd-MM-yyyy' }}</span>
                 <span class="day-badge">{{ b.bookingDay }}</span>
               </div>
             </td>
             <td class="farmer-col">
               <strong>{{ b.cropOwnerName }}</strong>
-            </td>
-            <td class="phone-col">
-              <a href="tel:{{ b.cropOwnerPhone }}" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
+              <a href="tel:{{ b.cropOwnerPhone }}" class="phone-link">
+                <span class="material-icons icon-sm">phone</span> {{ b.cropOwnerPhone }}
+              </a>
             </td>
             <td>
-              <span class="crop-tag">{{ b.cropName }}</span>
+              <span class="crop-tag">🌱 {{ b.cropName }}</span>
+              <small class="village-text">📍 {{ b.cropVillage }}</small>
             </td>
             <td><strong>{{ b.cropSize }}</strong> ac</td>
-            <td>{{ b.cropVillage }}</td>
             <td>₹{{ b.price }}</td>
             <td class="amount-col">₹{{ b.amount }}</td>
             <td>
@@ -147,12 +155,11 @@
           </tr>
         </tbody>
       </table>
-      
-      <!-- ================= PAGINATION BAR ================= -->
+
+      <!-- Pagination Footer -->
       <div class="pagination-footer">
         <div class="pagination-info">
-          Showing 
-          <strong>{{ (currentPage * pageSize) + 1 }}</strong> to 
+          Showing <strong>{{ (currentPage * pageSize) + 1 }}</strong> to 
           <strong>{{ (currentPage * pageSize) + bookings.length }}</strong> of 
           <strong>{{ totalElements }}</strong> bookings
         </div>
@@ -166,13 +173,7 @@
           </div>
 
           <div class="page-buttons">
-            <button 
-              class="btn-page-nav" 
-              [disabled]="isFirstPage" 
-              (click)="goToPage(currentPage - 1)">
-              ‹ Prev
-            </button>
-
+            <button class="btn-page-nav" [disabled]="isFirstPage" (click)="goToPage(currentPage - 1)">‹ Prev</button>
             <button 
               *ngFor="let p of getPageNumbers()" 
               class="btn-page-num" 
@@ -180,44 +181,200 @@
               (click)="goToPage(p)">
               {{ p + 1 }}
             </button>
-
-            <button 
-              class="btn-page-nav" 
-              [disabled]="isLastPage" 
-              (click)="goToPage(currentPage + 1)">
-              Next ›
-            </button>
+            <button class="btn-page-nav" [disabled]="isLastPage" (click)="goToPage(currentPage + 1)">Next ›</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- ================= VIEW 2: CALENDAR VIEW ================= -->
+  <div class="calendar-card" *ngIf="activeView === 'CALENDAR'">
+    <!-- Calendar Navigation Toolbar -->
+    <div class="calendar-toolbar">
+      <div class="month-title-wrap">
+        <h2>{{ currentCalendarDate | date:'MMMM yyyy' }}</h2>
+        <span class="legend-note">Click any date to inspect missions or view full capacity logs</span>
+      </div>
+
+      <div class="calendar-actions">
+        <button class="btn-cal-nav" (click)="prevMonth()">
+          <span class="material-icons">chevron_left</span>
+        </button>
+        <button class="btn-cal-today" (click)="jumpToToday()">
+          <span class="material-icons icon-sm">today</span>
+          <span>Today</span>
+        </button>
+        <button class="btn-cal-nav" (click)="nextMonth()">
+          <span class="material-icons">chevron_right</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Capacity Legend -->
+    <div class="capacity-legend">
+      <span class="legend-item"><span class="dot available"></span> Available</span>
+      <span class="legend-item"><span class="dot high"></span> Near Capacity (&gt;20 Ac)</span>
+      <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ MAX_DAILY_ACRES }} Ac)</span>
+    </div>
+
+    <!-- Day Header Row -->
+    <div class="calendar-grid-header">
+      <div class="cal-weekday" *ngFor="let dayName of weekDays">{{ dayName }}</div>
+    </div>
+
+    <!-- Calendar 7x6 Grid -->
+    <div class="calendar-grid">
+      <div 
+        *ngFor="let day of calendarDays" 
+        class="cal-day-cell" 
+        [class.outside-month]="!day.isCurrentMonth"
+        [class.is-today]="day.isToday"
+        [class.is-full]="day.isFull"
+        [class.has-bookings]="day.bookings.length > 0"
+        (click)="openDayDetails(day)">
+        
+        <div class="day-top">
+          <span class="day-num">{{ day.dayNumber }}</span>
+          <span class="capacity-badge" *ngIf="day.totalAcres > 0" [class.badge-full]="day.isFull">
+            {{ day.totalAcres }}/{{ MAX_DAILY_ACRES }} Ac
+          </span>
+        </div>
+
+        <div class="day-content" *ngIf="day.bookings.length > 0">
+          <div 
+            class="booking-chip" 
+            *ngFor="let b of day.bookings.slice(0, 2)"
+            [ngClass]="b.bookingStatus?.toLowerCase()">
+            <span class="chip-crop">{{ b.cropName }}</span>
+            <span class="chip-acres">{{ b.cropSize }}ac</span>
+          </div>
+
+          <span class="more-count" *ngIf="day.bookings.length > 2">
+            +{{ day.bookings.length - 2 }} more
+          </span>
+        </div>
+
+        <div class="day-empty" *ngIf="day.bookings.length === 0 && day.isCurrentMonth">
+          <span class="add-hint">+ Book</span>
+        </div>
+
+        <div class="locked-banner" *ngIf="day.isFull">
+          <span class="material-icons icon-sm">lock</span>
+          <span>FULL</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DAY DETAILS DIALOG (ON CALENDAR DATE CLICK) ================= -->
+  <div class="modal-backdrop" *ngIf="isDayDetailsOpen" (click)="closeDayDetails()">
+    <div class="day-dialog-card animate-scale-in" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <div class="header-content">
+          <span class="material-icons header-icon">event</span>
+          <div>
+            <h3>Bookings for {{ selectedCalendarDay?.dateStr | date:'fullDate' }}</h3>
+            <span class="capacity-pill" [class.pill-full]="selectedCalendarDay?.isFull">
+              Sprayed: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ MAX_DAILY_ACRES }} Acres</strong>
+            </span>
+          </div>
+        </div>
+        <button class="btn-close-modal" (click)="closeDayDetails()">✕</button>
+      </div>
+
+      <div class="dialog-body">
+        <div class="full-capacity-alert" *ngIf="selectedCalendarDay?.isFull">
+          <span class="material-icons">error</span>
+          <div>
+            <strong>Daily Limit Reached ({{ MAX_DAILY_ACRES }} Acres Max)</strong>
+            <p>Bookings are full for this day. Autonomous flight battery and payload duty cycles are fully utilized.</p>
+          </div>
+        </div>
+
+        <div *ngIf="selectedCalendarDay?.bookings?.length === 0" class="empty-day-state">
+          <span class="material-icons empty-icon">calendar_today</span>
+          <p>No drone missions booked for this date yet.</p>
+          <button 
+            type="button" 
+            class="btn-primary-action btn-sm"
+            (click)="bookForSpecificDate(selectedCalendarDay!.dateStr)">
+            Schedule a Mission for this Day
+          </button>
+        </div>
+
+        <!-- Bookings List for this specific day -->
+        <div class="day-bookings-list" *ngIf="selectedCalendarDay && selectedCalendarDay.bookings.length > 0">
+          <div class="day-booking-item" *ngFor="let b of selectedCalendarDay.bookings">
+            <div class="item-main">
+              <div class="item-title">
+                <strong>{{ b.cropOwnerName }}</strong>
+                <span class="status-badge" [ngClass]="b.bookingStatus?.toLowerCase()">{{ b.bookingStatus }}</span>
+              </div>
+              <div class="item-sub">
+                <span>📍 {{ b.cropVillage }}</span>
+                <span>🌱 {{ b.cropName }}</span>
+                <span>📐 <strong>{{ b.cropSize }} Acres</strong></span>
+                <span>📞 <a href="tel:{{ b.cropOwnerPhone }}">{{ b.cropOwnerPhone }}</a></span>
+              </div>
+              <p class="notes" *ngIf="b.bookingNotes">📝 {{ b.bookingNotes }}</p>
+            </div>
+            <div class="item-side">
+              <strong class="item-price">₹{{ b.amount }}</strong>
+              <small>{{ b.price }}/tank</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button type="button" class="btn-cancel" (click)="closeDayDetails()">Close</button>
+        <button 
+          *ngIf="!selectedCalendarDay?.isFull" 
+          type="button" 
+          class="btn-primary-action"
+          (click)="bookForSpecificDate(selectedCalendarDay!.dateStr)">
+          <span class="material-icons icon-sm">add</span>
+          <span>Book for this Day</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= CREATE BOOKING MODAL ================= -->
   <div class="modal-backdrop" *ngIf="isModalOpen" (click)="closeModal()">
-    <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-card animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="material-icons modal-icon">flight_takeoff</span>
           <div>
             <h3>Book a Drone Spraying Service</h3>
-            <p>Fill mission parameters to schedule dispatch</p>
+            <p>Schedule autonomous aerial mission parameters (Max: {{ MAX_DAILY_ACRES }} Ac/day)</p>
           </div>
         </div>
         <button class="btn-close-modal" (click)="closeModal()">✕</button>
       </div>
 
       <form [formGroup]="bookingForm" (ngSubmit)="saveBooking()" class="modal-form">
-        <div class="modal-grid">
+        <!-- Date Capacity Warning Alert -->
+        <div class="capacity-warning-banner" *ngIf="isDateLimitExceeded">
+          <span class="material-icons">report</span>
+          <div>
+            <strong>Booking Locked:</strong>
+            <p>{{ capacityErrorMessage }}</p>
+          </div>
+        </div>
 
+        <div class="modal-grid">
           <!-- Dynamic Crop Dropdown -->
           <div class="field-wrap">
-            <label>Crop Name <span class="req">*</span></label>
+            <label>
+              <span class="material-icons form-icon">eco</span>
+              Crop Name <span class="req">*</span>
+            </label>
             <select formControlName="cropName">
               <option value="" disabled>-- Select Crop from Registry --</option>
-              <option *ngFor="let c of crops" [value]="c.name">
-                🌱 {{ c.name }}
-              </option>
+              <option *ngFor="let c of crops" [value]="c.name">🌱 {{ c.name }}</option>
             </select>
             <small class="err" *ngIf="bookingForm.get('cropName')?.touched && bookingForm.get('cropName')?.invalid">
               Please choose a crop
@@ -226,12 +383,13 @@
 
           <!-- Dynamic Village Dropdown -->
           <div class="field-wrap">
-            <label>Crop Village / Farm Location <span class="req">*</span></label>
+            <label>
+              <span class="material-icons form-icon">location_on</span>
+              Farm Village Location <span class="req">*</span>
+            </label>
             <select formControlName="cropVillage">
               <option value="" disabled>-- Select Village from Registry --</option>
-              <option *ngFor="let v of villages" [value]="v.name">
-                📍 {{ v.name }}
-              </option>
+              <option *ngFor="let v of villages" [value]="v.name">📍 {{ v.name }}</option>
             </select>
             <small class="err" *ngIf="bookingForm.get('cropVillage')?.touched && bookingForm.get('cropVillage')?.invalid">
               Village location is required
@@ -240,8 +398,11 @@
           
           <!-- Farmer Name -->
           <div class="field-wrap">
-            <label>Crop Owner / Farmer Name <span class="req">*</span></label>
-            <input type="text" formControlName="cropOwnerName" placeholder="e.g. Ramesh Patel">
+            <label>
+              <span class="material-icons form-icon">person</span>
+              Farmer / Owner Name <span class="req">*</span>
+            </label>
+            <input type="text" formControlName="cropOwnerName" placeholder="Farmer full name">
             <small class="err" *ngIf="bookingForm.get('cropOwnerName')?.touched && bookingForm.get('cropOwnerName')?.invalid">
               Farmer name is required (min 3 chars)
             </small>
@@ -249,32 +410,41 @@
 
           <!-- Contact Phone -->
           <div class="field-wrap">
-            <label>Mobile Number (10 Digits) <span class="req">*</span></label>
-            <input type="tel" maxlength="10" formControlName="cropOwnerPhone" placeholder="9876543210">
+            <label>
+              <span class="material-icons form-icon">phone</span>
+              Mobile Number (10 Digits) <span class="req">*</span>
+            </label>
+            <input type="tel" maxlength="10" formControlName="cropOwnerPhone" placeholder="10-digit phone">
             <small class="err" *ngIf="bookingForm.get('cropOwnerPhone')?.touched && bookingForm.get('cropOwnerPhone')?.invalid">
               Valid 10-digit number starting with 6-9 required
             </small>
           </div>
 
-          <!-- Whole Integer Acres (1, 2, 3...) -->
+          <!-- Whole Integer Acres -->
           <div class="field-wrap">
-            <label>Land Size (Acres / Tanks) <span class="req">*</span></label>
+            <label>
+              <span class="material-icons form-icon">straighten</span>
+              Land Size (Acres / Tanks) <span class="req">*</span>
+            </label>
             <input 
               type="number" 
               step="1" 
               formControlName="cropSize" 
-              placeholder="e.g. 5">
-            <small class="hint">1 Acre = 1 Drone Tank (Whole numbers only)</small>
+              placeholder="e.g. 5"
+              [class.error-input]="isDateLimitExceeded">
+            <small class="hint">1 Acre = 1 Drone Tank (Max 30 Acres/day limit)</small>
             <small class="err" *ngIf="bookingForm.get('cropSize')?.touched && bookingForm.get('cropSize')?.invalid">
-              Enter valid whole acres (min 1, no decimals)
+              Enter valid whole acres (min 1, max 30)
             </small>
           </div>
 
-          <!-- Booking Date (Past Dates Permitted) -->
+          <!-- Booking Date -->
           <div class="field-wrap">
-            <label>Booking Date <span class="req">*</span></label>
+            <label>
+              <span class="material-icons form-icon">calendar_today</span>
+              Booking Date <span class="req">*</span>
+            </label>
             <input type="date" formControlName="bookingDate">
-            <small class="hint">Past and present dates allowed</small>
             <small class="err" *ngIf="bookingForm.get('bookingDate')?.touched && bookingForm.get('bookingDate')?.invalid">
               Valid date is required
             </small>
@@ -282,8 +452,11 @@
 
           <!-- Booking Notes -->
           <div class="field-wrap full-span">
-            <label>Booking Notes</label>
-            <textarea formControlName="bookingNotes" placeholder="Any additional instructions or field notes..."></textarea>
+            <label>
+              <span class="material-icons form-icon">edit_note</span>
+              Internal Booking Notes
+            </label>
+            <textarea formControlName="bookingNotes" placeholder="Pilot spray coordinates, road landmarks..."></textarea>
           </div>
         </div>
 
@@ -305,8 +478,13 @@
 
         <div class="modal-footer">
           <button type="button" class="btn-cancel" (click)="closeModal()">Cancel</button>
-          <button type="submit" class="btn-save" [disabled]="bookingForm.invalid">
-            Confirm & Schedule Booking
+          <button 
+            type="submit" 
+            class="btn-save" 
+            [disabled]="bookingForm.invalid || isDateLimitExceeded"
+            [title]="isDateLimitExceeded ? 'Date is fully booked. Choose another day.' : 'Confirm Booking'">
+            <span class="material-icons icon-sm">check_circle</span>
+            <span>Confirm & Schedule</span>
           </button>
         </div>
       </form>
