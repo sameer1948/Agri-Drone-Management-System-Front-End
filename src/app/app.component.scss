@@ -493,3 +493,144 @@
     transform: translateY(0);
   }
 }
+
+/* =========================================================
+   USER AUTHENTICATION CHIP & BUTTONS (NAVBAR)
+========================================================= */
+.user-auth-strip {
+  display: inline-flex;
+  align-items: center;
+
+  .btn-login-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    transition: all 0.2s ease;
+
+    .material-icons {
+      font-size: 1.1rem;
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
+    }
+  }
+
+  .user-session-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    padding: 4px 6px 4px 10px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+
+    .user-avatar {
+      font-size: 1.25rem;
+      color: #34d399;
+    }
+
+    .username {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #ecfdf5;
+      text-transform: capitalize;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-logout {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #f87171;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      padding: 0;
+
+      .material-icons {
+        font-size: 1rem;
+      }
+
+      &:hover {
+        background: #dc2626;
+        border-color: #dc2626;
+        color: #ffffff;
+        transform: scale(1.08);
+      }
+    }
+  }
+}
+
+/* Mobile Drawer Auth Elements */
+.mobile-auth-action {
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .mobile-user-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+
+    strong {
+      color: #34d399;
+      text-transform: capitalize;
+    }
+  }
+
+  .btn-mobile-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #7f1d1d;
+    color: #fecaca;
+    border: 1px solid #dc2626;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+}
+
+.mobile-login-link {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #10b981;
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 8px;
+  box-sizing: border-box;
+}

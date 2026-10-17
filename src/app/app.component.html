@@ -35,7 +35,7 @@
           <span>Spray Booking</span>
         </a>
 
-        <!-- Drone Operations -->
+        <!-- Drone Operations (Protected) -->
         <a 
           routerLink="/operations" 
           routerLinkActive="active" 
@@ -65,7 +65,7 @@
           <span>Diagnostics</span>
         </a>
 
-        <!-- Settings (Icon updated to 'settings') -->
+        <!-- Settings (Protected) -->
         <a 
           routerLink="/settings" 
           routerLinkActive="active" 
@@ -75,7 +75,7 @@
           <span>Settings</span>
         </a>
 
-        <!-- Reports (Icon updated to 'settings') -->
+        <!-- Reports (Protected) -->
         <a 
           routerLink="/reports" 
           routerLinkActive="active" 
@@ -84,21 +84,57 @@
           <span class="material-icons link-icon">receipt</span>
           <span>Reports</span>
         </a>
+
+        <!-- Mobile-Only Auth Action -->
+        <!-- <div class="mobile-auth-action" *ngIf="auth.isAuthenticated()">
+          <div class="mobile-user-info">
+            <span class="material-icons icon-sm">person</span>
+            <span>Logged in: <strong>{{ auth.currentUser()?.username }}</strong></span>
+          </div>
+          <button type="button" class="btn-mobile-logout" (click)="onLogout()">
+            <span class="material-icons icon-sm">logout</span>
+            <span>Sign Out</span>
+          </button>
+        </div>
+
+        <a 
+          *ngIf="!auth.isAuthenticated()" 
+          routerLink="/login" 
+          (click)="closeMobileMenu()" 
+          class="mobile-login-link">
+          <span class="material-icons icon-sm">login</span>
+          <span>Sign In to Dashboard</span>
+        </a> -->
       </div>
 
-      <!-- Quick Contact Hotline Action & Telemetry Badge -->
+      <!-- Quick Contact Hotline Action & Auth Strip -->
       <div class="nav-actions">
-        
-        <a routerLink="/operations" class="btn-primary-nav" (click)="closeMobileMenu()">
-          <span class="material-icons btn-icon">admin_panel_settings</span>
-          <span>Operations Portal</span>
-        </a>
+        <!-- Desktop Auth Strip -->
+        <div class="user-auth-strip">
+          <!-- Logged In State -->
+          <div *ngIf="auth.isAuthenticated()" class="user-session-chip">
+            <span class="material-icons user-avatar">account_circle</span>
+            <span class="username">{{ auth.currentUser()?.username }}</span>
+            <button 
+              type="button" 
+              class="btn-logout" 
+              (click)="onLogout()" 
+              title="Sign Out">
+              <span class="material-icons">logout</span>
+            </button>
+          </div>
+
+          <!-- Logged Out State -->
+          <a *ngIf="!auth.isAuthenticated()" routerLink="/login" class="btn-login-nav">
+            <span class="material-icons">login</span>
+            <span>Sign In</span>
+          </a>
+        </div>
 
         <a href="tel:9642343838" class="hotline-pill" title="Call Pilot Jagadeesh">
           <span class="pulse-dot"></span>
           <span class="hotline-text" style="color: blanchedalmond;">📞 +91 - 9642343838</span>
         </a>
-        
       </div>
     </nav>
   </header>
@@ -121,7 +157,6 @@
 
     <div class="footer-container">
       <div class="footer-grid">
-        <!-- Col 1: Brand & Operational Mission -->
         <div class="footer-col brand-col">
           <div class="footer-brand">
             <span class="material-icons brand-icon">psychiatry</span>
@@ -137,7 +172,6 @@
           </div>
         </div>
 
-        <!-- Col 2: Navigation Links -->
         <div class="footer-col">
           <h4>Navigation</h4>
           <ul class="footer-links">
@@ -149,7 +183,6 @@
           </ul>
         </div>
 
-        <!-- Col 3: Technical Specifications -->
         <div class="footer-col">
           <h4>Spraying Capabilities</h4>
           <ul class="footer-spec-list">
@@ -161,10 +194,8 @@
           </ul>
         </div>
 
-        <!-- Col 4: Pilot Dispatch & Local Base Contact -->
         <div class="footer-col contact-col">
           <h4>Certified Pilot Station</h4>
-          
           <div class="pilot-badge-box">
             <span class="material-icons pilot-icon">person</span>
             <span class="pilot-label"> Chief Drone Pilot & Operator: </span>
@@ -173,7 +204,7 @@
 
           <p class="contact-line">
             <span class="material-icons loc-icon">location_on</span>
-            <span  style="color:cornflowerblue;"> Near Hanuman Statue, Opposite Old Panchayat, Peda Rayavaram, Rangampeta Mandal, East Godavari District, Andhra Pradesh - 533291</span>
+            <span style="color:cornflowerblue;"> Near Hanuman Statue, Opposite Old Panchayat, Peda Rayavaram, Rangampeta Mandal, East Godavari District, Andhra Pradesh - 533291</span>
           </p>
 
           <p class="contact-line">
@@ -184,7 +215,7 @@
 
           <p class="contact-line">
             <span class="material-icons mail-icon">email</span>
-            <a href="mailto:sameer.sameer185@gmail.com" class="contact-link" style="color: blanchedalmond;">   sameer.sameer185&#64;gmail.com</a>
+            <a href="mailto:sameer.sameer185@gmail.com" class="contact-link" style="color: blanchedalmond;"> sameer.sameer185&#64;gmail.com</a>
           </p>
 
           <div class="compliance-badge">
@@ -194,7 +225,6 @@
         </div>
       </div>
 
-      <!-- Footer Bottom Bar -->
       <div class="footer-bottom">
         <p>© {{ currentYear }} Sri Jagadeeswara AGRI Drone Spraying. All rights reserved.</p>
         <div class="footer-legal-links">
