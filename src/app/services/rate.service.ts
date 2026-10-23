@@ -1,8 +1,8 @@
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Rate } from '../models/rate.model';
 import { environment } from '../../environments/environment';
+import { Rate } from '../models/rate.model';
 
 @Injectable({
   providedIn: 'root'
@@ -10,22 +10,26 @@ import { environment } from '../../environments/environment';
 export class RateService {
 
   private http = inject(HttpClient);
-  private baseUrl = `${environment.apiBaseUrl}`;
+  private baseUrl = `${environment.apiBaseUrl}/rates`;
 
-  constructor() { }
-
-  // --- Rate Configuration Endpoints ---
+  getRates(): Observable<Rate[]> {
+    return this.http.get<Rate[]>(this.baseUrl);
+  }
 
   getCurrentRate(): Observable<Rate> {
-    return this.http.get<Rate>(`${this.baseUrl}/rates/current`);
+    return this.http.get<Rate>(`${this.baseUrl}/current`);
   }
 
-  getAllRateHistory(): Observable<Rate[]> {
-    return this.http.get<Rate[]>(`${this.baseUrl}/rates`);
+  addRate(rate: { price: number }): Observable<Rate> {
+    return this.http.post<Rate>(this.baseUrl, rate);
   }
 
-  createNewRate(rate: Rate): Observable<Rate> {
-    return this.http.post<Rate>(`${this.baseUrl}/rates`, rate);
-  } 
+  updateRate(id: number, rate: { price: number }): Observable<Rate> {
+    return this.http.put<Rate>(`${this.baseUrl}/${id}`, rate);
+  }
+
+  deleteRate(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
   
 }

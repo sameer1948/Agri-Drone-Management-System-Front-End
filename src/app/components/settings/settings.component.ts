@@ -14,9 +14,9 @@ import { MaxCapacity } from '../../models/max-capacity.model';
 
 type ActiveTab = 'RATES' | 'CAPACITY' | 'DRONES' | 'VILLAGES' | 'CROPS';
 type ModalMode = 
-  | 'CREATE_DRONE' | 'EDIT_DRONE' 
-  | 'UPDATE_RATE' 
+  | 'CREATE_RATE' | 'EDIT_RATE'
   | 'UPDATE_CAPACITY'
+  | 'CREATE_DRONE' | 'EDIT_DRONE' 
   | 'CREATE_VILLAGE' | 'EDIT_VILLAGE' 
   | 'CREATE_CROP' | 'EDIT_CROP' 
   | null;
@@ -40,27 +40,24 @@ export class SettingsComponent implements OnInit {
   // Active section view
   currentTab: ActiveTab = 'RATES';
 
-  // --- 1. RATE STATE ---
-  currentRate: Rate = { 
-    price: 250, 
-    isActive: true, 
-    effectiveFrom: new Date().toISOString() 
-  };
-  rateHistory: Rate[] = [];
+  // --- 1. RATES ---
+  ratesList: Rate[] = [];
   filteredRates: Rate[] = [];
   pagedRates: Rate[] = [];
   isLoadingRates = false;
+  rateSearch = '';
   rateSortDir: 'asc' | 'desc' = 'desc';
   rateCurrentPage = 0;
   ratePageSize = 5;
   ratePageSizeOptions = [5, 10, 20];
   rateTotalPages = 1;
+  editingRateId: number | null = null;
 
-  // --- 2. CAPACITY STATE (NEW) ---
+  // --- 2. CAPACITY ---
   currentCapacity: MaxCapacity = { id: 1, maxAcres: 30 };
   isLoadingCapacity = false;
 
-  // --- 3. DRONE STATE ---
+  // --- 3. DRONES ---
   drones: Drone[] = [];
   filteredDrones: Drone[] = [];
   pagedDrones: Drone[] = [];
@@ -74,7 +71,7 @@ export class SettingsComponent implements OnInit {
   dronePageSizeOptions = [5, 10, 20];
   droneTotalPages = 1;
 
-  // --- 4. VILLAGE STATE ---
+  // --- 4. VILLAGES ---
   villages: Village[] = [];
   filteredVillages: Village[] = [];
   pagedVillages: Village[] = [];
@@ -86,7 +83,7 @@ export class SettingsComponent implements OnInit {
   villagePageSizeOptions = [5, 10, 20];
   villageTotalPages = 1;
 
-  // --- 5. CROP STATE ---
+  // --- 5. CROPS ---
   crops: Crop[] = [];
   filteredCrops: Crop[] = [];
   pagedCrops: Crop[] = [];
@@ -98,11 +95,11 @@ export class SettingsComponent implements OnInit {
   cropPageSizeOptions = [5, 10, 20];
   cropTotalPages = 1;
 
-  // --- MODAL / FORM CONTROLS ---
+  // Modals & Forms
   activeModal: ModalMode = null;
-  droneForm!: FormGroup;
   rateForm!: FormGroup;
   capacityForm!: FormGroup;
+  droneForm!: FormGroup;
   villageForm!: FormGroup;
   cropForm!: FormGroup;
 
@@ -124,21 +121,20 @@ export class SettingsComponent implements OnInit {
   }
 
   private initForms(): void {
+    this.rateForm = this.fb.group({
+      price: [null, [Validators.required, Validators.min(0), Validators.max(50000)]]
+    });
+
+    this.capacityForm = this.fb.group({
+      maxAcres: [30, [Validators.required, Validators.min(1), Validators.max(500), Validators.pattern('^[1-9][0-9]*$')]]
+    });
+
     this.droneForm = this.fb.group({
       droneId: ['', [Validators.required, Validators.pattern('^[a-zA-Z0-9-_]{3,20}$')]],
       droneName: ['', [Validators.required, Validators.minLength(3)]],
       droneOwnerName: ['', [Validators.required, Validators.minLength(3)]],
       droneOwnerPhone: ['', [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]],
       droneStatus: ['ACTIVE', Validators.required]
-    });
-
-    this.rateForm = this.fb.group({
-      price: [250, [Validators.required, Validators.min(50), Validators.max(10000)]],
-      changeReason: ['Standard rate update']
-    });
-
-    this.capacityForm = this.fb.group({
-      maxAcres: [30, [Validators.required, Validators.min(1), Validators.max(500), Validators.pattern('^[1-9][0-9]*$')]]
     });
 
     this.villageForm = this.fb.group({
@@ -154,7 +150,102 @@ export class SettingsComponent implements OnInit {
     this.currentTab = tab;
   }
 
-  // ================= CAPACITY OPERATIONS =================
+  // ================= 1. SIMPLE RATES =================
+  fetchRateData(): void {
+    this.isLoadingRates = true;
+    this.rateApi.getRates().subscribe({
+      next: (rates) => {
+        this.ratesList = rates || [];
+        this.applyRateFilters();
+        this.isLoadingRates = false;
+      },
+      error: () => {
+        this.isLoadingRates = false;
+        this.showToast('Failed to load rates list.', 'error');
+      }
+    });
+  }
+
+  applyRateFilters(): void {
+    let result = [...this.ratesList];
+
+    if (this.rateSearch.trim()) {
+      const q = this.rateSearch.trim();
+      result = result.filter(r => String(r.price).includes(q));
+    }
+
+    result.sort((a, b) => {
+      const pA = Number(a.price);
+      const pB = Number(b.price);
+      return this.rateSortDir === 'asc' ? pA - pB : pB - pA;
+    });
+
+    this.filteredRates = result;
+    this.rateTotalPages = Math.ceil(this.filteredRates.length / this.ratePageSize) || 1;
+    if (this.rateCurrentPage >= this.rateTotalPages) this.rateCurrentPage = 0;
+
+    const start = this.rateCurrentPage * this.ratePageSize;
+    this.pagedRates = this.filteredRates.slice(start, start + this.ratePageSize);
+  }
+
+  toggleRateSort(): void {
+    this.rateSortDir = this.rateSortDir === 'asc' ? 'desc' : 'asc';
+    this.applyRateFilters();
+  }
+
+  openCreateRateModal(): void {
+    this.editingRateId = null;
+    this.rateForm.reset({ price: null });
+    this.activeModal = 'CREATE_RATE';
+  }
+
+  openEditRateModal(r: Rate): void {
+    this.editingRateId = r.rateId || null;
+    this.rateForm.patchValue({ price: r.price });
+    this.activeModal = 'EDIT_RATE';
+  }
+
+  saveRate(): void {
+    if (this.rateForm.invalid) {
+      this.rateForm.markAllAsTouched();
+      return;
+    }
+
+    const payload = { price: Number(this.rateForm.value.price) };
+
+    if (this.editingRateId) {
+      this.rateApi.updateRate(this.editingRateId, payload).subscribe({
+        next: () => {
+          this.closeModal();
+          this.fetchRateData();
+          this.showToast(`Rate updated to ₹${payload.price}!`, 'success');
+        },
+        error: () => this.showToast('Failed to update rate.', 'error')
+      });
+    } else {
+      this.rateApi.addRate(payload).subscribe({
+        next: () => {
+          this.closeModal();
+          this.fetchRateData();
+          this.showToast(`Rate ₹${payload.price}/tank added!`, 'success');
+        },
+        error: () => this.showToast('Failed to add rate.', 'error')
+      });
+    }
+  }
+
+  deleteRate(rateId?: number): void {
+    if (!rateId || !confirm('Are you sure you want to delete this rate?')) return;
+    this.rateApi.deleteRate(rateId).subscribe({
+      next: () => {
+        this.fetchRateData();
+        this.showToast('Rate deleted.', 'success');
+      },
+      error: () => this.showToast('Failed to delete rate.', 'error')
+    });
+  }
+
+  // ================= 2. CAPACITY =================
   fetchCapacityData(): void {
     this.isLoadingCapacity = true;
     this.capacityApi.getMaxCapacity().subscribe({
@@ -171,99 +262,20 @@ export class SettingsComponent implements OnInit {
   }
 
   openUpdateCapacityModal(): void {
-    this.capacityForm.reset({
-      maxAcres: this.currentCapacity.maxAcres
-    });
+    this.capacityForm.reset({ maxAcres: this.currentCapacity.maxAcres });
     this.activeModal = 'UPDATE_CAPACITY';
   }
 
   saveCapacity(): void {
-    if (this.capacityForm.invalid) {
-      this.capacityForm.markAllAsTouched();
-      return;
-    }
-
+    if (this.capacityForm.invalid) return;
     const acres = Number(this.capacityForm.value.maxAcres);
     this.capacityApi.updateMaxCapacity(acres).subscribe({
       next: (res) => {
         this.currentCapacity = res;
         this.closeModal();
-        this.showToast(`Daily capacity updated to ${res.maxAcres} Acres/day!`, 'success');
+        this.showToast(`Daily capacity set to ${res.maxAcres} Acres/day!`, 'success');
       },
-      error: () => this.showToast('Failed to update daily capacity.', 'error')
-    });
-  }
-
-  // ================= 1. RATE OPERATIONS =================
-  fetchRateData(): void {
-    this.isLoadingRates = true;
-    this.rateApi.getCurrentRate().subscribe({
-      next: (rate) => {
-        if (rate && rate.price) this.currentRate = rate;
-      },
-      error: () => this.showToast('Could not load current rate.', 'error')
-    });
-
-    this.rateApi.getAllRateHistory().subscribe({
-      next: (history) => {
-        this.rateHistory = history || [];
-        this.applyRateSortAndPaging();
-        this.isLoadingRates = false;
-      },
-      error: () => {
-        this.isLoadingRates = false;
-      }
-    });
-  }
-
-  applyRateSortAndPaging(): void {
-    let result = [...this.rateHistory];
-    result.sort((a, b) => {
-      const timeA = a.effectiveFrom ? new Date(a.effectiveFrom).getTime() : 0;
-      const timeB = b.effectiveFrom ? new Date(b.effectiveFrom).getTime() : 0;
-      return this.rateSortDir === 'asc' ? timeA - timeB : timeB - timeA;
-    });
-
-    this.filteredRates = result;
-    this.rateTotalPages = Math.ceil(this.filteredRates.length / this.ratePageSize) || 1;
-    if (this.rateCurrentPage >= this.rateTotalPages) this.rateCurrentPage = 0;
-
-    const start = this.rateCurrentPage * this.ratePageSize;
-    this.pagedRates = this.filteredRates.slice(start, start + this.ratePageSize);
-  }
-
-  toggleRateSort(): void {
-    this.rateSortDir = this.rateSortDir === 'asc' ? 'desc' : 'asc';
-    this.applyRateSortAndPaging();
-  }
-
-  openUpdateRateModal(): void {
-    this.rateForm.reset({
-      price: this.currentRate.price,
-      changeReason: ''
-    });
-    this.activeModal = 'UPDATE_RATE';
-  }
-
-  saveRate(): void {
-    if (this.rateForm.invalid) {
-      this.rateForm.markAllAsTouched();
-      return;
-    }
-
-    const payload: Rate = {
-      price: Number(this.rateForm.value.price),
-      changeReason: this.rateForm.value.changeReason?.trim() || 'Tariff revision'
-    };
-
-    this.rateApi.createNewRate(payload).subscribe({
-      next: (res) => {
-        this.currentRate = res;
-        this.closeModal();
-        this.fetchRateData();
-        this.showToast(`New standard rate set to ₹${res.price}/tank!`, 'success');
-      },
-      error: () => this.showToast('Failed to update rate.', 'error')
+      error: () => this.showToast('Failed to update capacity.', 'error')
     });
   }
 
@@ -306,8 +318,7 @@ export class SettingsComponent implements OnInit {
       if (valA === valB) return 0;
       if (valA == null) return 1;
       if (valB == null) return -1;
-      const comp = valA > valB ? 1 : -1;
-      return this.droneSortDir === 'asc' ? comp : -comp;
+      return this.droneSortDir === 'asc' ? (valA > valB ? 1 : -1) : (valA > valB ? -1 : 1);
     });
 
     this.filteredDrones = result;
@@ -330,107 +341,60 @@ export class SettingsComponent implements OnInit {
 
   toggleDroneStatus(drone: Drone): void {
     const newStatus = drone.droneStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    const action = newStatus === 'ACTIVE' ? 'enabled' : 'disabled';
-
     this.droneApi.toggleDroneStatus(drone.droneId, newStatus).subscribe({
       next: () => {
         drone.droneStatus = newStatus;
         this.applyDroneFilters();
-        this.showToast(`Drone ${drone.droneId} ${action}!`, 'success');
-      },
-      error: () => {
-        const updated: Drone = { ...drone, droneStatus: newStatus };
-        this.droneApi.updateDrone(drone.droneId, updated).subscribe({
-          next: () => {
-            drone.droneStatus = newStatus;
-            this.applyDroneFilters();
-            this.showToast(`Drone ${drone.droneId} ${action}!`, 'success');
-          },
-          error: () => this.showToast('Failed to change status.', 'error')
-        });
+        this.showToast(`Drone ${drone.droneId} status changed!`, 'success');
       }
     });
   }
 
   openCreateDroneModal(): void {
     this.editingDroneId = null;
-    this.droneForm.reset({
-      droneId: '',
-      droneName: '',
-      droneOwnerName: '',
-      droneOwnerPhone: '',
-      droneStatus: 'ACTIVE'
-    });
+    this.droneForm.reset({ droneId: '', droneName: '', droneOwnerName: '', droneOwnerPhone: '', droneStatus: 'ACTIVE' });
     this.droneForm.get('droneId')?.enable();
     this.activeModal = 'CREATE_DRONE';
   }
 
-  openEditDroneModal(drone: Drone): void {
-    this.editingDroneId = drone.droneId;
-    this.droneForm.patchValue({
-      droneId: drone.droneId,
-      droneName: drone.droneName,
-      droneOwnerName: drone.droneOwnerName,
-      droneOwnerPhone: drone.droneOwnerPhone,
-      droneStatus: drone.droneStatus
-    });
+  openEditDroneModal(d: Drone): void {
+    this.editingDroneId = d.droneId;
+    this.droneForm.patchValue(d);
     this.droneForm.get('droneId')?.disable();
     this.activeModal = 'EDIT_DRONE';
   }
 
   saveDrone(): void {
-    if (this.droneForm.invalid) {
-      this.droneForm.markAllAsTouched();
-      return;
-    }
-
-    const payload: Drone = { ...this.droneForm.getRawValue() };
-
-    if (this.activeModal === 'EDIT_DRONE' && this.editingDroneId) {
-      this.droneApi.updateDrone(this.editingDroneId, payload).subscribe({
-        next: () => {
-          this.closeModal();
-          this.fetchDrones();
-          this.showToast(`Drone #${payload.droneId} updated!`, 'success');
-        },
-        error: () => this.showToast('Failed to update drone.', 'error')
+    if (this.droneForm.invalid) return;
+    const payload = { ...this.droneForm.getRawValue() };
+    if (this.editingDroneId) {
+      this.droneApi.updateDrone(this.editingDroneId, payload).subscribe(() => {
+        this.closeModal();
+        this.fetchDrones();
+        this.showToast(`Drone #${payload.droneId} updated!`, 'success');
       });
     } else {
-      this.droneApi.createDrone(payload).subscribe({
-        next: () => {
-          this.closeModal();
-          this.fetchDrones();
-          this.showToast(`Drone #${payload.droneId} registered!`, 'success');
-        },
-        error: () => this.showToast('Registration failed. ID may be a duplicate.', 'error')
+      this.droneApi.createDrone(payload).subscribe(() => {
+        this.closeModal();
+        this.fetchDrones();
+        this.showToast(`Drone #${payload.droneId} registered!`, 'success');
       });
     }
   }
 
-  deleteDrone(droneId: string): void {
-    if (!confirm(`Are you sure you want to delete Drone #${droneId}?`)) return;
-    this.droneApi.deleteDrone(droneId).subscribe({
-      next: () => {
-        this.fetchDrones();
-        this.showToast(`Drone #${droneId} removed.`, 'success');
-      },
-      error: () => this.showToast('Failed to delete drone.', 'error')
+  deleteDrone(id: string): void {
+    if (!confirm(`Delete Drone #${id}?`)) return;
+    this.droneApi.deleteDrone(id).subscribe(() => {
+      this.fetchDrones();
+      this.showToast(`Drone #${id} removed.`, 'success');
     });
   }
 
-  // ================= 4. VILLAGE OPERATIONS =================
+  // ================= 4. VILLAGES & 5. CROPS =================
   fetchVillages(): void {
-    this.isLoadingVillages = true;
-    this.villageApi.getVillages().subscribe({
-      next: (data) => {
-        this.villages = data || [];
-        this.applyVillageFilters();
-        this.isLoadingVillages = false;
-      },
-      error: () => {
-        this.isLoadingVillages = false;
-        this.showToast('Failed to load villages.', 'error');
-      }
+    this.villageApi.getVillages().subscribe(data => {
+      this.villages = data || [];
+      this.applyVillageFilters();
     });
   }
 
@@ -440,16 +404,9 @@ export class SettingsComponent implements OnInit {
       const q = this.villageSearch.toLowerCase().trim();
       result = result.filter(v => v.name.toLowerCase().includes(q));
     }
-
-    result.sort((a, b) => {
-      const comp = a.name.localeCompare(b.name);
-      return this.villageSortDir === 'asc' ? comp : -comp;
-    });
-
+    result.sort((a, b) => this.villageSortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
     this.filteredVillages = result;
     this.villageTotalPages = Math.ceil(this.filteredVillages.length / this.villagePageSize) || 1;
-    if (this.villageCurrentPage >= this.villageTotalPages) this.villageCurrentPage = 0;
-
     const start = this.villageCurrentPage * this.villagePageSize;
     this.pagedVillages = this.filteredVillages.slice(start, start + this.villagePageSize);
   }
@@ -472,70 +429,35 @@ export class SettingsComponent implements OnInit {
   }
 
   saveVillage(): void {
-    if (this.villageForm.invalid) {
-      this.villageForm.markAllAsTouched();
-      return;
-    }
-
-    const trimmed = this.villageForm.value.name.trim();
-    const isDuplicate = this.villages.some(v => 
-      v.name.toLowerCase() === trimmed.toLowerCase() && v.villageId !== this.editingVillageId
-    );
-
-    if (isDuplicate) {
-      this.showToast(`Village "${trimmed}" already exists. Duplicates not allowed.`, 'error');
-      return;
-    }
-
-    const payload: Village = { name: trimmed };
-
-    if (this.activeModal === 'EDIT_VILLAGE' && this.editingVillageId) {
-      this.villageApi.updateVillage(this.editingVillageId, payload).subscribe({
-        next: () => {
-          this.closeModal();
-          this.fetchVillages();
-          this.showToast(`Village updated to "${trimmed}"!`, 'success');
-        },
-        error: (err) => this.showToast(err.error?.message || 'Failed to update village.', 'error')
+    if (this.villageForm.invalid) return;
+    const payload = { name: this.villageForm.value.name.trim() };
+    if (this.editingVillageId) {
+      this.villageApi.updateVillage(this.editingVillageId, payload).subscribe(() => {
+        this.closeModal();
+        this.fetchVillages();
+        this.showToast('Village updated!', 'success');
       });
     } else {
-      this.villageApi.addVillage(payload).subscribe({
-        next: () => {
-          this.closeModal();
-          this.fetchVillages();
-          this.showToast(`Village "${trimmed}" added!`, 'success');
-        },
-        error: (err) => this.showToast(err.error?.message || 'Failed to add village.', 'error')
+      this.villageApi.addVillage(payload).subscribe(() => {
+        this.closeModal();
+        this.fetchVillages();
+        this.showToast('Village added!', 'success');
       });
     }
   }
 
-  deleteVillage(villageId?: number): void {
-    if (!villageId) return;
-    if (!confirm('Are you sure you want to delete this village record?')) return;
-
-    this.villageApi.deleteVillage(villageId).subscribe({
-      next: () => {
-        this.fetchVillages();
-        this.showToast('Village removed.', 'success');
-      },
-      error: () => this.showToast('Failed to delete village.', 'error')
+  deleteVillage(id?: number): void {
+    if (!id || !confirm('Delete village?')) return;
+    this.villageApi.deleteVillage(id).subscribe(() => {
+      this.fetchVillages();
+      this.showToast('Village removed.', 'success');
     });
   }
 
-  // ================= 5. CROP OPERATIONS =================
   fetchCrops(): void {
-    this.isLoadingCrops = true;
-    this.cropApi.getCrops().subscribe({
-      next: (data) => {
-        this.crops = data || [];
-        this.applyCropFilters();
-        this.isLoadingCrops = false;
-      },
-      error: () => {
-        this.isLoadingCrops = false;
-        this.showToast('Failed to load crops.', 'error');
-      }
+    this.cropApi.getCrops().subscribe(data => {
+      this.crops = data || [];
+      this.applyCropFilters();
     });
   }
 
@@ -545,16 +467,9 @@ export class SettingsComponent implements OnInit {
       const q = this.cropSearch.toLowerCase().trim();
       result = result.filter(c => c.name.toLowerCase().includes(q));
     }
-
-    result.sort((a, b) => {
-      const comp = a.name.localeCompare(b.name);
-      return this.cropSortDir === 'asc' ? comp : -comp;
-    });
-
+    result.sort((a, b) => this.cropSortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
     this.filteredCrops = result;
     this.cropTotalPages = Math.ceil(this.filteredCrops.length / this.cropPageSize) || 1;
-    if (this.cropCurrentPage >= this.cropTotalPages) this.cropCurrentPage = 0;
-
     const start = this.cropCurrentPage * this.cropPageSize;
     this.pagedCrops = this.filteredCrops.slice(start, start + this.cropPageSize);
   }
@@ -577,59 +492,34 @@ export class SettingsComponent implements OnInit {
   }
 
   saveCrop(): void {
-    if (this.cropForm.invalid) {
-      this.cropForm.markAllAsTouched();
-      return;
-    }
-
-    const trimmed = this.cropForm.value.name.trim();
-    const isDuplicate = this.crops.some(c => 
-      c.name.toLowerCase() === trimmed.toLowerCase() && c.cropId !== this.editingCropId
-    );
-
-    if (isDuplicate) {
-      this.showToast(`Crop "${trimmed}" already exists. Duplicates not allowed.`, 'error');
-      return;
-    }
-
-    const payload: Crop = { name: trimmed };
-
-    if (this.activeModal === 'EDIT_CROP' && this.editingCropId) {
-      this.cropApi.updateCrop(this.editingCropId, payload).subscribe({
-        next: () => {
-          this.closeModal();
-          this.fetchCrops();
-          this.showToast(`Crop updated to "${trimmed}"!`, 'success');
-        },
-        error: (err) => this.showToast(err.error?.message || 'Failed to update crop.', 'error')
+    if (this.cropForm.invalid) return;
+    const payload = { name: this.cropForm.value.name.trim() };
+    if (this.editingCropId) {
+      this.cropApi.updateCrop(this.editingCropId, payload).subscribe(() => {
+        this.closeModal();
+        this.fetchCrops();
+        this.showToast('Crop updated!', 'success');
       });
     } else {
-      this.cropApi.addCrop(payload).subscribe({
-        next: () => {
-          this.closeModal();
-          this.fetchCrops();
-          this.showToast(`Crop "${trimmed}" registered!`, 'success');
-        },
-        error: (err) => this.showToast(err.error?.message || 'Failed to add crop.', 'error')
+      this.cropApi.addCrop(payload).subscribe(() => {
+        this.closeModal();
+        this.fetchCrops();
+        this.showToast('Crop registered!', 'success');
       });
     }
   }
 
-  deleteCrop(cropId?: number): void {
-    if (!cropId) return;
-    if (!confirm('Are you sure you want to delete this crop record?')) return;
-
-    this.cropApi.deleteCrop(cropId).subscribe({
-      next: () => {
-        this.fetchCrops();
-        this.showToast('Crop removed.', 'success');
-      },
-      error: () => this.showToast('Failed to delete crop.', 'error')
+  deleteCrop(id?: number): void {
+    if (!id || !confirm('Delete crop?')) return;
+    this.cropApi.deleteCrop(id).subscribe(() => {
+      this.fetchCrops();
+      this.showToast('Crop deleted.', 'success');
     });
   }
 
   closeModal(): void {
     this.activeModal = null;
+    this.editingRateId = null;
     this.editingDroneId = null;
     this.editingVillageId = null;
     this.editingCropId = null;
