@@ -12,13 +12,13 @@
   <header class="page-header">
     <div class="header-left">
       <div class="title-with-pill">
-        <h1>Drone Spraying Schedule</h1>
+        <h1>Farmer Spray Booking</h1>
         <span class="count-badge">
           <span class="material-icons icon-sm">flight</span>
-          {{ totalElements }} Missions
+          {{ totalElements }} Requests
         </span>
       </div>
-      <p>Schedule autonomous aerial crop spray missions with real-time daily capacity management</p>
+      <p>Schedule autonomous aerial crop spraying appointments across East Godavari villages</p>
     </div>
 
     <div class="header-right">
@@ -43,21 +43,21 @@
       </div>
 
       <button class="btn-primary-action" (click)="openCreateModal()">
-        <span class="material-icons btn-icon">edit_calendar</span>
+        <span class="material-icons btn-icon">add_task</span>
         <span>Book a Service</span>
       </button>
     </div>
   </header>
 
-  <!-- Rate & Daily Capacity Banner -->
-  <div class="rate-strip">
-    <div class="rate-info">
-      <span class="material-icons strip-icon">payments</span>
-      <span>Rate: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</span>
-    </div>
+  <!-- Capacity Information Banner (Without Rate/Price) -->
+  <div class="capacity-strip">
     <div class="capacity-info">
       <span class="material-icons strip-icon">speed</span>
-      <span>Daily Max Capacity: <strong>{{ maxDailyAcres }} Acres / Day</strong> per pilot unit</span>
+      <span>Daily Drone Capacity Limit: <strong>{{ maxDailyAcres }} Acres / Day</strong></span>
+    </div>
+    <div class="drone-notice">
+      <span class="material-icons strip-icon">verified</span>
+      <span>Autonomous Centrifugal Atomizer Dispatch</span>
     </div>
   </div>
 
@@ -102,23 +102,19 @@
         <thead>
           <tr>
             <th class="sortable" (click)="setSort('bookingId')">
-              # Serial <span class="sort-indicator">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              # ID <span class="sort-indicator">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('bookingDate')">
-              Date & Schedule <span class="sort-indicator">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Scheduled Date & Time <span class="sort-indicator">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('cropOwnerName')">
               Farmer / Contact <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('cropName')">
-              Crop & Village <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Crop & Location <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('cropSize')">
               Land (Acres) <span class="sort-indicator">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
-            <th>Rate / Tank</th>
-            <th class="sortable" (click)="setSort('amount')">
-              Total Amount <span class="sort-indicator">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th class="sortable" (click)="setSort('bookingStatus')">
               Status <span class="sort-indicator">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
@@ -130,7 +126,7 @@
             <td class="serial-col">#{{ b.bookingId }}</td>
             <td>
               <div class="date-cell">
-                <span class="date-str">{{ b.bookingDate | date:'dd-MM-yyyy' }}</span>
+                <span class="date-str">{{ b.bookingDate | date:'dd-MM-yyyy' }} <small class="time-str">⏰ {{ b.bookingTime || '09:00' }}</small></span>
                 <span class="day-badge">{{ b.bookingDay }}</span>
               </div>
             </td>
@@ -144,9 +140,7 @@
               <span class="crop-tag">🌱 {{ b.cropName }}</span>
               <small class="village-text">📍 {{ b.cropVillage }}</small>
             </td>
-            <td><strong>{{ b.cropSize }}</strong> ac</td>
-            <td>₹{{ b.price }}</td>
-            <td class="amount-col">₹{{ b.amount }}</td>
+            <td><strong>{{ b.cropSize }}</strong> Acres</td>
             <td>
               <span class="status-badge" [ngClass]="b.bookingStatus?.toLowerCase()">
                 {{ b.bookingStatus }}
@@ -194,7 +188,7 @@
     <div class="calendar-toolbar">
       <div class="month-title-wrap">
         <h2>{{ currentCalendarDate | date:'MMMM yyyy' }}</h2>
-        <span class="legend-note">Click any date to inspect missions or view full capacity logs</span>
+        <span class="legend-note">Click any date to see scheduled bookings or reserve a slot</span>
       </div>
 
       <div class="calendar-actions">
@@ -214,7 +208,7 @@
     <!-- Capacity Legend -->
     <div class="capacity-legend">
       <span class="legend-item"><span class="dot available"></span> Available</span>
-      <span class="legend-item"><span class="dot high"></span> Near Capacity (&gt;20 Ac)</span>
+      <span class="legend-item"><span class="dot high"></span> Near Capacity</span>
       <span class="legend-item"><span class="dot full"></span> Full / Locked ({{ maxDailyAcres }} Ac)</span>
     </div>
 
@@ -276,7 +270,7 @@
           <div>
             <h3>Bookings for {{ selectedCalendarDay?.dateStr | date:'fullDate' }}</h3>
             <span class="capacity-pill" [class.pill-full]="selectedCalendarDay?.isFull">
-              Sprayed: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ maxDailyAcres }} Acres</strong>
+              Booked Land: <strong>{{ selectedCalendarDay?.totalAcres || 0 }} / {{ maxDailyAcres }} Acres</strong>
             </span>
           </div>
         </div>
@@ -287,19 +281,19 @@
         <div class="full-capacity-alert" *ngIf="selectedCalendarDay?.isFull">
           <span class="material-icons">error</span>
           <div>
-            <strong>Daily Limit Reached ({{ maxDailyAcres }} Acres Max)</strong>
-            <p>Bookings are full for this day. Autonomous flight battery and payload duty cycles are fully utilized.</p>
+            <strong>Daily Booking Limit Reached ({{ maxDailyAcres }} Acres Max)</strong>
+            <p>Drone flight schedule is fully booked for this date. Please select another day.</p>
           </div>
         </div>
 
         <div *ngIf="selectedCalendarDay?.bookings?.length === 0" class="empty-day-state">
           <span class="material-icons empty-icon">calendar_today</span>
-          <p>No drone missions booked for this date yet.</p>
+          <p>No spraying appointments scheduled for this date.</p>
           <button 
             type="button" 
             class="btn-primary-action btn-sm"
             (click)="bookForSpecificDate(selectedCalendarDay!.dateStr)">
-            Schedule a Mission for this Day
+            Book an Appointment for this Day
           </button>
         </div>
 
@@ -315,13 +309,10 @@
                 <span>📍 {{ b.cropVillage }}</span>
                 <span>🌱 {{ b.cropName }}</span>
                 <span>📐 <strong>{{ b.cropSize }} Acres</strong></span>
+                <span>⏰ {{ b.bookingTime || '09:00' }}</span>
                 <span>📞 <a href="tel:{{ b.cropOwnerPhone }}">{{ b.cropOwnerPhone }}</a></span>
               </div>
               <p class="notes" *ngIf="b.bookingNotes">📝 {{ b.bookingNotes }}</p>
-            </div>
-            <div class="item-side">
-              <strong class="item-price">₹{{ b.amount }}</strong>
-              <small>{{ b.price }}/tank</small>
             </div>
           </div>
         </div>
@@ -346,10 +337,10 @@
     <div class="modal-card animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <span class="material-icons modal-icon">flight_takeoff</span>
+          <span class="material-icons modal-icon">agriculture</span>
           <div>
-            <h3>Book a Drone Spraying Service</h3>
-            <p>Schedule autonomous aerial mission parameters (Max: {{ maxDailyAcres }} Ac/day)</p>
+            <h3>Book Drone Crop Spraying</h3>
+            <p>Enter field details to reserve autonomous spraying</p>
           </div>
         </div>
         <button class="btn-close-modal" (click)="closeModal()">✕</button>
@@ -360,20 +351,20 @@
         <div class="capacity-warning-banner" *ngIf="isDateLimitExceeded">
           <span class="material-icons">report</span>
           <div>
-            <strong>Booking Locked:</strong>
+            <strong>Booking Notice:</strong>
             <p>{{ capacityErrorMessage }}</p>
           </div>
         </div>
 
         <div class="modal-grid">
-          <!-- Dynamic Crop Dropdown -->
+          <!-- Crop Dropdown -->
           <div class="field-wrap">
             <label>
               <span class="material-icons form-icon">eco</span>
               Crop Name <span class="req">*</span>
             </label>
             <select formControlName="cropName">
-              <option value="" disabled>-- Select Crop from Registry --</option>
+              <option value="" disabled>-- Select Crop --</option>
               <option *ngFor="let c of crops" [value]="c.name">🌱 {{ c.name }}</option>
             </select>
             <small class="err" *ngIf="bookingForm.get('cropName')?.touched && bookingForm.get('cropName')?.invalid">
@@ -381,14 +372,14 @@
             </small>
           </div>
 
-          <!-- Dynamic Village Dropdown -->
+          <!-- Village Dropdown -->
           <div class="field-wrap">
             <label>
               <span class="material-icons form-icon">location_on</span>
               Farm Village Location <span class="req">*</span>
             </label>
             <select formControlName="cropVillage">
-              <option value="" disabled>-- Select Village from Registry --</option>
+              <option value="" disabled>-- Select Village --</option>
               <option *ngFor="let v of villages" [value]="v.name">📍 {{ v.name }}</option>
             </select>
             <small class="err" *ngIf="bookingForm.get('cropVillage')?.touched && bookingForm.get('cropVillage')?.invalid">
@@ -420,21 +411,21 @@
             </small>
           </div>
 
-          <!-- Whole Integer Acres -->
+          <!-- Land Size -->
           <div class="field-wrap">
             <label>
               <span class="material-icons form-icon">straighten</span>
-              Land Size (Acres / Tanks) <span class="req">*</span>
+              Field Area (Acres) <span class="req">*</span>
             </label>
             <input 
               type="number" 
-              step="1" 
+              step="0.5" 
               formControlName="cropSize" 
               placeholder="e.g. 5"
               [class.error-input]="isDateLimitExceeded">
-            <small class="hint">1 Acre = 1 Drone Tank (Max 30 Acres/day limit)</small>
+            <small class="hint">Total land size to spray (e.g. 1, 2, 3, 4, 5, ...)</small>
             <small class="err" *ngIf="bookingForm.get('cropSize')?.touched && bookingForm.get('cropSize')?.invalid">
-              Enter valid whole acres (min 1, max 30)
+              Enter valid acreage
             </small>
           </div>
 
@@ -450,29 +441,25 @@
             </small>
           </div>
 
-          <!-- Booking Notes -->
+          <!-- Booking Preferred Time -->
+          <div class="field-wrap">
+            <label>
+              <span class="material-icons form-icon">schedule</span>
+              Preferred Time Slot <span class="req">*</span>
+            </label>
+            <input type="time" formControlName="bookingTime">
+            <small class="err" *ngIf="bookingForm.get('bookingTime')?.touched && bookingForm.get('bookingTime')?.invalid">
+              Preferred time slot is required
+            </small>
+          </div>
+
+          <!-- Notes -->
           <div class="field-wrap full-span">
             <label>
               <span class="material-icons form-icon">edit_note</span>
-              Internal Booking Notes
+              Field Notes / Land landmarks
             </label>
-            <textarea formControlName="bookingNotes" placeholder="Pilot spray coordinates, road landmarks..."></textarea>
-          </div>
-        </div>
-
-        <!-- Calculated Cost Banner -->
-        <div class="price-calculator-strip">
-          <div class="price-cell">
-            <span class="lbl">Unit Rate</span>
-            <span class="val">₹{{ currentRate.price }} / tank</span>
-          </div>
-          <div class="price-cell">
-            <span class="lbl">Tanks Needed</span>
-            <span class="val">{{ bookingForm.get('cropSize')?.value || 0 }} Tanks</span>
-          </div>
-          <div class="price-cell">
-            <span class="lbl">Estimated Total</span>
-            <span class="val highlight">₹{{ calculatedAmount }}</span>
+            <textarea formControlName="bookingNotes" placeholder="Farm location landmark, road directions, crop variety..."></textarea>
           </div>
         </div>
 
@@ -484,7 +471,7 @@
             [disabled]="bookingForm.invalid || isDateLimitExceeded"
             [title]="isDateLimitExceeded ? 'Date is fully booked. Choose another day.' : 'Confirm Booking'">
             <span class="material-icons icon-sm">check_circle</span>
-            <span>Confirm & Schedule</span>
+            <span>Submit Booking</span>
           </button>
         </div>
       </form>

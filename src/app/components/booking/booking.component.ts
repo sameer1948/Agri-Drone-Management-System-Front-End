@@ -1,8 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
-import { Rate } from '../../models/rate.model';
-import { RateService } from '../../services/rate.service';
 import { Booking } from '../../models/booking.model';
 import { PageResponse } from '../../models/drone.model';
 import { BookingService } from '../../services/booking.service';
@@ -40,7 +38,6 @@ export class BookingComponent implements OnInit {
 
   private fb = inject(FormBuilder);
   private bookingApi = inject(BookingService);
-  private rateApi = inject(RateService);
   private villageApi = inject(VillageService);
   private cropApi = inject(CropService);
   private capacityApi = inject(MaxCapacityService);
@@ -53,7 +50,6 @@ export class BookingComponent implements OnInit {
 
   bookings: Booking[] = [];
   allBookingsForCalendar: Booking[] = [];
-  currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
   isLoading: boolean = false;
 
   // Master Data Dropdown Lists
@@ -99,12 +95,10 @@ export class BookingComponent implements OnInit {
   pageSizeOptions: number[] = [5, 10, 20, 50];
 
   todayDate: string = '';
-  calculatedAmount: number = 0;
 
   ngOnInit(): void {
-    this.loadCapacity();
     this.todayDate = new Date().toISOString().split('T')[0];
-    this.loadRate();
+    this.loadCapacity();
     this.loadMasterData();
     this.initForm();
     this.loadBookings();
@@ -116,18 +110,17 @@ export class BookingComponent implements OnInit {
       next: (cap) => {
         if (cap?.maxAcres) {
           this.maxDailyAcres = cap.maxAcres;
-          // Re-evaluate calendar or form capacity checks
-          if (this.buildCalendarMonth) this.buildCalendarMonth();
+          this.buildCalendarMonth();
         }
       },
-      error: () => this.showToast('Could not fetch capacity limit. Using default 30.', 'error') 
+      error: () => this.showToast('Could not fetch capacity limit. Using default 30.', 'error')
     });
   }
 
   loadMasterData(): void {
     this.cropApi.getCrops().subscribe({
       next: (data) => (this.crops = data || []),
-      error: (err) => this.showToast(`Failed to load crops:${err}`, 'error')
+      error: (err) => this.showToast(`Failed to load crops: ${err}`, 'error')
     });
 
     this.villageApi.getVillages().subscribe({
@@ -136,21 +129,12 @@ export class BookingComponent implements OnInit {
     });
   }
 
-  loadRate(): void {
-    this.rateApi.getCurrentRate().subscribe({
-      next: (res) => {
-        if (res && res.price) {
-          this.currentRate = res;
-          this.recalculatePrice();
-        }
-      },
-      error: () => this.showToast('Failed to fetch rate. Defaulting to ₹250/tank.', 'error')
-    });
-  }
-
   private initForm(): void {
+    const currentTimeStr = new Date().toTimeString().split(' ')[0].substring(0, 5); // HH:mm
+
     this.bookingForm = this.fb.group({
       bookingDate: [this.todayDate, Validators.required],
+      bookingTime: [currentTimeStr, Validators.required],
       bookingDay: [''],
       cropName: ['', Validators.required],
       cropOwnerName: ['', [Validators.required, Validators.minLength(3)]],
@@ -171,19 +155,10 @@ export class BookingComponent implements OnInit {
     });
 
     this.bookingForm.get('cropSize')?.valueChanges.subscribe(() => {
-      this.recalculatePrice();
       this.checkDateCapacity();
     });
   }
 
-  recalculatePrice(): void {
-    const acres = parseInt(this.bookingForm.get('cropSize')?.value, 10) || 0;
-    this.calculatedAmount = acres * (this.currentRate.price || 250);
-  }
-
-  /**
-   * Validates if the selected date already reached or would exceed 30 Acres
-   */
   checkDateCapacity(): void {
     const selectedDate = this.bookingForm.get('bookingDate')?.value;
     const requestedAcres = parseInt(this.bookingForm.get('cropSize')?.value, 10) || 0;
@@ -200,11 +175,11 @@ export class BookingComponent implements OnInit {
 
     if (currentDayAcres >= this.maxDailyAcres) {
       this.isDateLimitExceeded = true;
-      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.maxDailyAcres} Acres booked). Please try another day.`;
+      this.capacityErrorMessage = `⚠️ Bookings are full for ${selectedDate} (${currentDayAcres}/${this.maxDailyAcres} Acres booked). Please choose another date.`;
     } else if (currentDayAcres + requestedAcres > this.maxDailyAcres) {
       const remaining = this.maxDailyAcres - currentDayAcres;
       this.isDateLimitExceeded = true;
-      this.capacityErrorMessage = `⚠️ Daily limit exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.maxDailyAcres} Ac/day).`;
+      this.capacityErrorMessage = `⚠️ Daily capacity exceeded! Only ${remaining} acre(s) left on ${selectedDate} (Limit: ${this.maxDailyAcres} Ac/day).`;
     } else {
       this.isDateLimitExceeded = false;
       this.capacityErrorMessage = '';
@@ -396,8 +371,11 @@ export class BookingComponent implements OnInit {
   openCreateModal(): void {
     this.isDateLimitExceeded = false;
     this.capacityErrorMessage = '';
+    const currentTimeStr = new Date().toTimeString().split(' ')[0].substring(0, 5);
+
     this.bookingForm.reset({
       bookingDate: this.todayDate,
+      bookingTime: currentTimeStr,
       bookingDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
       cropName: '',
       cropOwnerName: '',
@@ -407,7 +385,6 @@ export class BookingComponent implements OnInit {
       bookingNotes: '',
       bookingStatus: 'PENDING'
     });
-    this.recalculatePrice();
     this.checkDateCapacity();
     this.isModalOpen = true;
   }
@@ -433,14 +410,13 @@ export class BookingComponent implements OnInit {
     const formVals = this.bookingForm.value;
     const bookingPayload: Booking = {
       bookingDate: formVals.bookingDate,
+      bookingTime: formVals.bookingTime.length === 5 ? formVals.bookingTime + ':00' : formVals.bookingTime,
       bookingDay: formVals.bookingDay || new Date(formVals.bookingDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }),
       cropName: formVals.cropName,
       cropOwnerName: formVals.cropOwnerName,
       cropOwnerPhone: formVals.cropOwnerPhone,
       cropSize: parseInt(formVals.cropSize, 10),
       cropVillage: formVals.cropVillage,
-      price: this.currentRate.price,
-      amount: this.calculatedAmount,
       bookingNotes: formVals.bookingNotes || '',
       bookingStatus: 'PENDING'
     };
