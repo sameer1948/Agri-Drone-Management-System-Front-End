@@ -41,7 +41,7 @@
             Micronutrients
           </button>
         </div>
-        <span class="click-hint">Click anywhere on the field to direct the drone flight path</span>
+        <span class="click-hint">Click on field to direct drone flight</span>
       </div>
     </div>
 
@@ -55,11 +55,11 @@
       <div class="hero-stats">
         <div>
           <strong>10x Faster</strong>
-          <span>Than manual knapsack spraying</span>
+          <span>Than manual spraying</span>
         </div>
         <div>
-          <strong>₹{{ currentRate.price }} / Tank</strong>
-          <span>Flat Tariff (1 Acre = 1 Drone Tank)</span>
+          <strong class="highlight-stat">₹{{ currentRate.price }} / Tank</strong>
+          <span>Flat Rate (1 Acre = 1 Drone Tank)</span>
         </div>
         <div>
           <strong>100% Canopy</strong>
@@ -69,69 +69,46 @@
     </div>
   </section>
 
-  <!-- Interactive Calculator & Direct Booking Action Grid -->
+  <!-- Rate Showcase & Direct Dispatch Action Grid -->
   <section class="calculator-action-grid">
-    <!-- Precision Calculator Card -->
-    <div class="card calc-card">
+    <!-- Active Operational Rate Card (Replaced Calculator) -->
+    <div class="card tariff-card">
       <div class="card-header">
-        <span class="material-icons card-icon">calculate</span>
+        <span class="material-icons card-icon">payments</span>
         <div>
-          <h2>Precision Fertilizer & Cost Estimator</h2>
-          <p class="subtitle">Based on operational tariff: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</p>
+          <h2>Active Spraying Tariff</h2>
+          <p class="subtitle">Standard agricultural service price per tank</p>
         </div>
       </div>
 
-      <!-- Target Crop from Backend Database -->
-      <div class="form-group">
-        <label>
-          <span class="material-icons label-icon">eco</span>
-          Target Crop from Database Registry
-        </label>
-        <select [(ngModel)]="estCrop" (change)="calculateEstimate()">
-          <option value="" disabled>-- Select Registered Crop --</option>
-          <option *ngFor="let c of cropsList" [value]="c.name">🌱 {{ c.name }}</option>
-        </select>
+      <div class="tariff-display-box">
+        <div class="tariff-price-wrap">
+          <span class="currency">₹</span>
+          <span class="price-val">{{ currentRate.price | number:'1.2-2' }}</span>
+          <span class="unit">/ tank</span>
+        </div>
+        <p class="tariff-note">1 Drone Tank covers exactly 1 Acre of agricultural farmland.</p>
       </div>
 
-      <!-- Land Size Slider & Integer Number Input -->
-      <div class="form-group">
-        <div class="slider-label-row">
-          <label>
-            <span class="material-icons label-icon">straighten</span>
-            Field Area (Acres):
-          </label>
-          <strong class="acre-indicator">{{ estAcres }} Acres</strong>
+      <div class="tariff-features-list">
+        <div class="feature-item">
+          <span class="material-icons feat-icon">check_circle</span>
+          <span>Includes certified commercial DGCA pilot & drone deployment</span>
         </div>
-        <input 
-          type="range" 
-          min="1" 
-          max="50" 
-          step="1" 
-          [(ngModel)]="estAcres" 
-          (input)="calculateEstimate()">
-        <small class="hint-text">1 Acre requires exactly 1 full drone payload tank load.</small>
-      </div>
-
-      <!-- Live Calculation Breakdown -->
-      <div class="summary-box">
-        <div class="res-row">
-          <span>Required Payload Tanks:</span>
-          <strong>{{ estTanks }} Tanks (10L–16L each)</strong>
+        <div class="feature-item">
+          <span class="material-icons feat-icon">check_circle</span>
+          <span>Centrifugal rotary atomizers for 100% uniform canopy deposition</span>
         </div>
-        <div class="res-row">
-          <span>Active Tariff per Tank:</span>
-          <strong>₹{{ currentRate.price }}</strong>
-        </div>
-        <div class="res-row total">
-          <span>Estimated Spraying Fee:</span>
-          <strong class="price">₹{{ estCost | number:'1.0-0' }}</strong>
+        <div class="feature-item">
+          <span class="material-icons feat-icon">check_circle</span>
+          <span>Zero soil compaction, zero crop trampling, and zero labor delay</span>
         </div>
       </div>
 
       <div class="calc-action-row">
         <a routerLink="/booking" class="btn-book-direct">
           <span class="material-icons">calendar_month</span>
-          <span>Schedule This Mission Now</span>
+          <span>Book a Spraying Service</span>
         </a>
       </div>
     </div>

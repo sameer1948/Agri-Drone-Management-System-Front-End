@@ -1,9 +1,10 @@
 .agri-portal {
-  //max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem 1.25rem;
   font-family: system-ui, -apple-system, sans-serif;
   color: #1e293b;
+  box-sizing: border-box;
 }
 
 .material-icons {
@@ -48,6 +49,7 @@
   padding: 8px 14px;
   border-radius: 8px;
   border: 1px solid rgba(52, 211, 153, 0.25);
+  z-index: 2;
 
   .hud-item {
     display: flex;
@@ -82,6 +84,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  z-index: 2;
 
   .btn-spray {
     background: #059669;
@@ -133,7 +136,7 @@
 }
 
 .hero-content {
-  padding: 1.5rem 2rem 2rem 2rem;
+  padding: 1.75rem 2rem 2rem 2rem;
   color: #ecfdf5;
 
   .badge {
@@ -176,6 +179,10 @@
         display: block;
         font-size: 1.35rem;
         color: #34d399;
+
+        &.highlight-stat {
+          color: #38bdf8;
+        }
       }
       span {
         font-size: 0.82rem;
@@ -185,10 +192,10 @@
   }
 }
 
-/* ================= CALCULATOR & ACTION GRID ================= */
+/* ================= ACTION GRID ================= */
 .calculator-action-grid {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
 
   @media (max-width: 960px) {
@@ -229,114 +236,99 @@
   }
 }
 
-.form-group {
-  margin-bottom: 1.25rem;
+/* ================= TARIFF RATE CARD ================= */
+.tariff-card {
+  display: flex;
+  flex-direction: column;
 
-  label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 0.4rem;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #334155;
+  .tariff-display-box {
+    background: #f0fdf4;
+    border: 1.5px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1.25rem;
 
-    .label-icon {
-      font-size: 1rem;
-      color: #10b981;
-    }
-  }
+    .tariff-price-wrap {
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 4px;
 
-  .slider-label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .acre-indicator {
-      font-size: 1.1rem;
-      color: #059669;
-    }
-  }
-
-  select, input[type="range"] {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 0.9rem;
-    outline: none;
-
-    &:focus {
-      border-color: #10b981;
-    }
-  }
-
-  input[type="range"] {
-    accent-color: #10b981;
-    cursor: pointer;
-    margin-top: 6px;
-  }
-
-  .hint-text {
-    display: block;
-    font-size: 0.75rem;
-    color: #64748b;
-    margin-top: 4px;
-  }
-}
-
-.summary-box {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  padding: 1.2rem;
-  border-radius: 10px;
-  margin-bottom: 1.25rem;
-
-  .res-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    color: #1e293b;
-
-    &.total {
-      border-top: 1px dashed #86efac;
-      padding-top: 0.75rem;
-      margin-top: 0.5rem;
-      font-size: 1.15rem;
-
-      .price {
-        color: #15803d;
-        font-size: 1.4rem;
+      .currency {
+        font-size: 2rem;
         font-weight: 800;
+        color: #064e3b;
+      }
+
+      .price-val {
+        font-size: 3.25rem;
+        font-weight: 900;
+        color: #15803d;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      .unit {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #065f46;
+      }
+    }
+
+    .tariff-note {
+      margin: 8px 0 0 0;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #166534;
+    }
+  }
+
+  .tariff-features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: #334155;
+
+      .feat-icon {
+        font-size: 1.15rem;
+        color: #10b981;
       }
     }
   }
-}
 
-.calc-action-row {
-  .btn-book-direct {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 0.95rem;
-    padding: 12px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    transition: all 0.2s ease;
-    box-sizing: border-box;
+  .calc-action-row {
+    margin-top: auto;
 
-    &:hover {
-      background: linear-gradient(135deg, #059669, #047857);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
+    .btn-book-direct {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+
+      &:hover {
+        background: linear-gradient(135deg, #059669, #047857);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
+      }
     }
   }
 }
@@ -441,5 +433,79 @@
     font-size: 0.82rem;
     color: #1e40af;
     font-weight: 600;
+  }
+}
+
+/* ================= MOBILE RESPONSIVENESS ================= */
+@media (max-width: 768px) {
+  .agri-portal {
+    padding: 1rem 0.75rem 2rem 0.75rem;
+  }
+
+  .canvas-wrapper {
+    height: 320px;
+  }
+
+  .flight-hud {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    padding: 6px 10px;
+    top: 10px;
+    left: 10px;
+
+    .hud-item .val {
+      font-size: 0.85rem;
+    }
+  }
+
+  .canvas-controls {
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 8px;
+
+    .click-hint {
+      display: none;
+    }
+
+    .btn-spray {
+      padding: 6px 12px;
+      font-size: 0.82rem;
+    }
+
+    .fluid-selector button {
+      padding: 5px 8px;
+      font-size: 0.75rem;
+    }
+  }
+
+  .hero-content {
+    padding: 1.25rem;
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    p {
+      font-size: 0.88rem;
+    }
+
+    .hero-stats {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .tariff-card .tariff-display-box {
+    padding: 1.25rem 0.75rem;
+
+    .tariff-price-wrap .price-val {
+      font-size: 2.5rem;
+    }
   }
 }

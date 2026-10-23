@@ -4,9 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Rate } from '../../models/rate.model';
 import { RateService } from '../../services/rate.service';
-import { CropService } from '../../services/crop.service';
-import { Crop } from '../../models/crop.model';
-
 
 interface SprayParticle {
   x: number;
@@ -40,7 +37,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private ctx!: CanvasRenderingContext2D;
   private animId: number | null = null;
   private rateApi = inject(RateService);
-  private cropApi = inject(CropService);
 
   // Flight & Simulation State
   isSpraying = true;
@@ -70,19 +66,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private crops: CropBlade[] = [];
   private readonly maxParticles = 600;
 
-  // Database-Driven Crops & Pricing State
-  cropsList: Crop[] = [];
-  currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
-
-  // Calculator State (1 Acre = 1 Tank)
-  estCrop = '';
-  estAcres = 5;
-  estTanks = 5;
-  estCost = 1250;
+  // Active Rate
+  currentRate: Rate = { price: 250 };
 
   ngOnInit(): void {
     this.loadRate();
-    this.loadCrops();
   }
 
   loadRate(): void {
@@ -90,26 +78,10 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         if (res && res.price) {
           this.currentRate = res;
-          this.calculateEstimate();
         }
       },
       error: () => {
         console.warn('Could not fetch active tariff. Defaulting to ₹250/tank.');
-        this.calculateEstimate();
-      }
-    });
-  }
-
-  loadCrops(): void {
-    this.cropApi.getCrops().subscribe({
-      next: (crops) => {
-        this.cropsList = crops || [];
-        if (this.cropsList.length > 0 && !this.estCrop) {
-          this.estCrop = this.cropsList[0].name;
-        }
-      },
-      error: (err) => {
-        console.error('Failed to load crops from database:', err);
       }
     });
   }
@@ -394,13 +366,5 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
-  }
-
-  // Cost Estimator: 1 Acre = 1 Tank (Real Whole Number)
-  calculateEstimate(): void {
-    const acres = Math.max(1, Math.round(Number(this.estAcres) || 1));
-    this.estAcres = acres;
-    this.estTanks = acres; // 1:1 proportionality
-    this.estCost = acres * (this.currentRate.price || 250);
   }
 }
