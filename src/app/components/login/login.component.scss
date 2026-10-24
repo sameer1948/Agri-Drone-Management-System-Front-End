@@ -201,6 +201,26 @@
   }
 }
 
+/* Session Expired Alert */
+.alert-session-expired {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  color: #92400e;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+
+  .material-icons {
+    font-size: 1.25rem;
+    color: #d97706;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

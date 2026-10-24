@@ -3,17 +3,21 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 export const authGuard: CanActivateFn = (route, state) => {
-
+  
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  if (auth.isAuthenticated()) {
-    return true;
+  // If token is expired or user is not logged in
+  if (auth.isTokenExpired() || !auth.isAuthenticated()) {
+    auth.logout();
+    return router.createUrlTree(['/login'], {
+      queryParams: { 
+        returnUrl: state.url,
+        sessionExpired: auth.getToken() ? 'true' : null
+      }
+    });
   }
 
-  // Redirect to login with returnUrl query parameter
-  return router.createUrlTree(['/login'], {
-    queryParams: { returnUrl: state.url }
-  });
-  
+  return true;
+
 };

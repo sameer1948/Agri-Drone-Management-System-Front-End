@@ -9,6 +9,12 @@
       <p>Sign in to manage mission schedules, fleet telemetry, and billing records</p>
     </div>
 
+    <!-- Session Expired Notice -->
+    <div class="alert-session-expired" *ngIf="sessionExpiredNotice">
+      <span class="material-icons">timer_off</span>
+      <span>{{ sessionExpiredNotice }}</span>
+    </div>
+
     <!-- Error Alert -->
     <div class="alert-error" *ngIf="errorMessage">
       <span class="material-icons">error</span>

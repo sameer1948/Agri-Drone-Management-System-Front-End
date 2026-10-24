@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -11,7 +11,7 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
@@ -25,7 +25,17 @@ export class LoginComponent {
 
   isLoading = false;
   errorMessage = '';
+  sessionExpiredNotice = '';
   showPassword = false;
+
+  ngOnInit(): void {
+    // Check if redirected due to token expiration
+    this.route.queryParams.subscribe((params) => {
+      if (params['sessionExpired'] === 'true') {
+        this.sessionExpiredNotice = 'Your session has expired. Please sign in again to continue.';
+      }
+    });
+  }
 
   onSubmit(): void {
     if (this.loginForm.invalid) {
@@ -35,6 +45,7 @@ export class LoginComponent {
 
     this.isLoading = true;
     this.errorMessage = '';
+    this.sessionExpiredNotice = '';
 
     this.auth.login(this.loginForm.value).subscribe({
       next: () => {
