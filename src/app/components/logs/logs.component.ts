@@ -66,7 +66,7 @@ export class LogsComponent implements OnInit {
   // Pagination
   currentPage = 0;
   pageSize = 10;
-  pageSizeOptions = [5, 10, 20, 50];
+  pageSizeOptions = [5, 10, 20, 50, 100, 150, 200, 250, 500, 1000];
   totalPages = 0;
 
   // Dialog & In-Place Edit States

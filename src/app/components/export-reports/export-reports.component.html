@@ -10,249 +10,631 @@
   <header class="export-header">
     <div class="title-wrap">
       <div class="brand-pill">
-        <span class="material-icons pill-icon">account_balance_wallet</span>
-        <span>Financial Ledger & Data Governance</span>
+        <span class="material-icons pill-icon">admin_panel_settings</span>
+        <span>Central Data Governance &amp; Administration Monitor</span>
       </div>
-      <h1>Central Data Export & Payment Reports</h1>
-      <p>Download comprehensive payment ledgers, receivables, spraying mission logs, and master registries</p>
+      <h1>Data Reports &amp; Entity Monitoring</h1>
+      <p>Inspect database records with live search, column sorting, pagination, and download formatted Excel workbooks</p>
     </div>
 
     <div class="header-actions">
       <button class="btn-sync" (click)="fetchAllData()" [disabled]="isLoading">
         <span class="material-icons" [class.spinning]="isLoading">sync</span>
-        <span>{{ isLoading ? 'Pulling DB...' : 'Sync Database' }}</span>
+        <span>{{ isLoading ? 'Syncing...' : 'Sync Database' }}</span>
       </button>
 
       <button class="btn-master-download" (click)="exportCompleteMasterReport()" [disabled]="isLoading || isExporting">
         <span class="material-icons">file_download</span>
-        <span>Download Master Excel (.xlsx)</span>
+        <span>Complete Database Backup (.xlsx)</span>
       </button>
     </div>
   </header>
 
-  <!-- Live Financial & Operational Telemetry Counters -->
-  <section class="metrics-grid">
-    <div class="metric-card hero-revenue">
-      <div class="icon-circle paid-icon">
-        <span class="material-icons">payments</span>
+  <!-- ================= SECTION 1: MASTER CONSOLIDATED DATA (FEATURED HUB) ================= -->
+  <section class="master-hub-section">
+    <div class="master-card">
+      <div class="master-badge">
+        <span class="material-icons icon-sm">hub</span>
+        <span>Interlinked Operational Lifecycle Hub</span>
       </div>
-      <div class="metric-text">
-        <span class="lbl">Collected Payments</span>
-        <strong class="val">₹{{ totalCollectedAmount | number }}</strong>
-        <small class="sub">Settled Invoices ({{ payments.length }} records)</small>
-      </div>
-    </div>
 
-    <div class="metric-card hero-pending">
-      <div class="icon-circle pending-icon">
-        <span class="material-icons">pending_actions</span>
-      </div>
-      <div class="metric-text">
-        <span class="lbl">Pending Receivables</span>
-        <strong class="val highlight-pending">₹{{ totalPendingAmount | number }}</strong>
-        <small class="sub">Outstanding Farmer Balance</small>
-      </div>
-    </div>
+      <div class="master-card-body">
+        <div class="master-info-side">
+          <div class="master-title-row">
+            <div class="icon-circle master-icon">
+              <span class="material-icons">dataset_linked</span>
+            </div>
+            <div>
+              <h2>Master Consolidated Operations Report</h2>
+              <p>Combined records: <strong>Logs</strong> (Core) + <strong>Bookings</strong> (Schedule) + <strong>Payments</strong> (Financial Settlements)</p>
+            </div>
+          </div>
 
-    <div class="metric-card">
-      <div class="icon-circle flight">
-        <span class="material-icons">flight_takeoff</span>
-      </div>
-      <div class="metric-text">
-        <span class="lbl">Completed Missions</span>
-        <strong class="val">{{ logs.length }}</strong>
-        <small class="sub">Across {{ totalAcreageSprayed }} Sprayed Acres</small>
-      </div>
-    </div>
+          <div class="master-columns-preview">
+            <span class="col-pill"><span class="material-icons icon-xs">tag</span> Log &amp; Booking IDs</span>
+            <span class="col-pill"><span class="material-icons icon-xs">person</span> Farmer Contacts</span>
+            <span class="col-pill"><span class="material-icons icon-xs">location_on</span> Farm &amp; Village</span>
+            <span class="col-pill"><span class="material-icons icon-xs">straighten</span> Sprayed Area &amp; Tanks</span>
+            <span class="col-pill"><span class="material-icons icon-xs">schedule</span> Scheduled &amp; Completed Dates</span>
+            <span class="col-pill"><span class="material-icons icon-xs">payments</span> Billing, Paid &amp; Pending Dues</span>
+          </div>
+        </div>
 
-    <div class="metric-card">
-      <div class="icon-circle booking">
-        <span class="material-icons">calendar_month</span>
-      </div>
-      <div class="metric-text">
-        <span class="lbl">Total Bookings</span>
-        <strong class="val">{{ bookings.length }}</strong>
-        <small class="sub">Gross Value: ₹{{ totalBilledAmount | number }}</small>
+        <div class="master-actions-side">
+          <div class="counter-box">
+            <span class="counter-lbl">Total Consolidated Rows</span>
+            <strong class="counter-val">{{ masterData.length }}</strong>
+          </div>
+
+          <div class="btn-actions-row">
+            <button class="btn-action-view" (click)="openViewDialog('MASTER')">
+              <span class="material-icons icon-sm">visibility</span>
+              <span>View Data</span>
+            </button>
+
+            <button class="btn-action-excel master-btn" (click)="exportTableToExcel('MASTER')" [disabled]="isLoading">
+              <span class="material-icons icon-sm">download</span>
+              <span>Export to Excel</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Quick Single-Entity Export Cards -->
-  <section class="reports-section">
+  <!-- ================= SECTION 2: 8 INDIVIDUAL CORE TABLE CARDS ================= -->
+  <section class="entities-section">
     <div class="section-heading">
-      <h2>Module-Specific Excel Exports</h2>
-      <p>Download structured spreadsheets for individual operational and financial divisions</p>
+      <h2>
+        <span class="material-icons heading-icon">table_chart</span>
+        Database Entities Master Cards
+      </h2>
+      <p>View individual database table records or export each table to its own Excel spreadsheet</p>
     </div>
 
     <div class="cards-grid">
-      <!-- 1. PRIMARY: Payments & Financial Settlements -->
-      <div class="export-card featured-payment-card">
-        <div class="featured-badge">
-          <span class="material-icons">star</span>
-          <span>Primary Financial Ledger</span>
-        </div>
+      <!-- 1. Customer Bookings -->
+      <div class="entity-card">
         <div class="card-top">
-          <span class="material-icons card-icon pay-icon">account_balance_wallet</span>
-          <span class="count-tag">{{ payments.length }} payments</span>
+          <div class="icon-wrap booking-icon">
+            <span class="material-icons">calendar_month</span>
+          </div>
+          <span class="count-tag">{{ bookings.length }} records</span>
         </div>
-        <h3>Payments & Billing Ledger</h3>
-        <p>Complete payment audit records, transaction modes (Cash / UPI), pending balances, collection dates, and farmer references.</p>
-        <button class="btn-card-export btn-pay-export" (click)="exportSingleSheet('PAYMENTS')" [disabled]="isLoading">
-          <span class="material-icons icon-sm">download</span>
-          <span>Download Payments (.xlsx)</span>
-        </button>
+        <h3>Bookings Master</h3>
+        <p class="card-desc">Scheduled aerial spraying appointments, crop parameters, village plots, and farmer contacts.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('BOOKINGS')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('BOOKINGS')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
       </div>
 
       <!-- 2. Flight Mission Logs -->
-      <div class="export-card">
+      <div class="entity-card">
         <div class="card-top">
-          <span class="material-icons card-icon logs-icon">receipt_long</span>
+          <div class="icon-wrap log-icon">
+            <span class="material-icons">receipt_long</span>
+          </div>
           <span class="count-tag">{{ logs.length }} records</span>
         </div>
-        <h3>Spraying Mission Logs</h3>
-        <p>Execution history, chemical tank consumption, acres sprayed, pilot timestamps, and mission status.</p>
-        <button class="btn-card-export" (click)="exportSingleSheet('LOGS')" [disabled]="isLoading">
-          <span class="material-icons icon-sm">download</span>
-          <span>Download Logs (.xlsx)</span>
-        </button>
-      </div>
-
-      <!-- 3. Customer Bookings -->
-      <div class="export-card">
-        <div class="card-top">
-          <span class="material-icons card-icon bookings-icon">edit_calendar</span>
-          <span class="count-tag">{{ bookings.length }} records</span>
+        <h3>Flight Mission Logs</h3>
+        <p class="card-desc">Flight executions, assigned drones, 1:1 tank consumptions, confirmed and completed timestamps.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('LOGS')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('LOGS')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
         </div>
-        <h3>Bookings & Schedules</h3>
-        <p>Farmer contacts, village plot locations, scheduled dates, and preliminary cost calculations.</p>
-        <button class="btn-card-export" (click)="exportSingleSheet('BOOKINGS')" [disabled]="isLoading">
-          <span class="material-icons icon-sm">download</span>
-          <span>Download Bookings (.xlsx)</span>
-        </button>
       </div>
 
-      <!-- 4. Drone Hardware Registry -->
-      <div class="export-card">
+      <!-- 3. Payments Ledger -->
+      <div class="entity-card">
         <div class="card-top">
-          <span class="material-icons card-icon drones-icon">flight</span>
+          <div class="icon-wrap payment-icon">
+            <span class="material-icons">account_balance_wallet</span>
+          </div>
+          <span class="count-tag">{{ payments.length }} records</span>
+        </div>
+        <h3>Payments Ledger</h3>
+        <p class="card-desc">Invoiced totals, paid receipts, pending dues, Cash/UPI settlement modes, and audit notes.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('PAYMENTS')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('PAYMENTS')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Maintenance & Repairs -->
+      <div class="entity-card">
+        <div class="card-top">
+          <div class="icon-wrap repair-icon">
+            <span class="material-icons">build</span>
+          </div>
+          <span class="count-tag">{{ repairs.length }} records</span>
+        </div>
+        <h3>Repairs &amp; Maintenance</h3>
+        <p class="card-desc">Hardware replacements, motor diagnostics, battery repairs, service cost amounts, and workshop locations.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('REPAIRS')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('REPAIRS')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 5. Drone Fleet Registry -->
+      <div class="entity-card">
+        <div class="card-top">
+          <div class="icon-wrap drone-icon">
+            <span class="material-icons">flight</span>
+          </div>
           <span class="count-tag">{{ drones.length }} units</span>
         </div>
-        <h3>Drone Specifications</h3>
-        <p>Hardware IDs, models, owner chief pilots, contact numbers, and operational readiness status.</p>
-        <button class="btn-card-export" (click)="exportSingleSheet('DRONES')" [disabled]="isLoading">
-          <span class="material-icons icon-sm">download</span>
-          <span>Download (.xlsx)</span>
-        </button>
+        <h3>Drone Fleet Units</h3>
+        <p class="card-desc">Hardware IDs, hexacopter models, chief pilots, phone numbers, and operational readiness status.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('DRONES')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('DRONES')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
       </div>
 
-      <!-- 5. Master Directory Metadata -->
-      <div class="export-card">
+      <!-- 6. Tariff Rates Master -->
+      <div class="entity-card">
         <div class="card-top">
-          <span class="material-icons card-icon meta-icon">dataset</span>
-          <span class="count-tag">{{ villages.length + crops.length }} items</span>
+          <div class="icon-wrap rate-icon">
+            <span class="material-icons">payments</span>
+          </div>
+          <span class="count-tag">{{ rates.length }} rates</span>
         </div>
-        <h3>Villages & Crops Registry</h3>
-        <p>Master directory of serviced agricultural villages and regional crop varieties.</p>
-        <button class="btn-card-export" (click)="exportSingleSheet('METADATA')" [disabled]="isLoading">
-          <span class="material-icons icon-sm">download</span>
-          <span>Download Directory (.xlsx)</span>
-        </button>
+        <h3>Tariff Rates Master</h3>
+        <p class="card-desc">Spraying prices per tank (1 Acre = 1 Tank) and timestamped tariff revision entries.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('RATES')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('RATES')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 7. Villages Directory -->
+      <div class="entity-card">
+        <div class="card-top">
+          <div class="icon-wrap village-icon">
+            <span class="material-icons">location_city</span>
+          </div>
+          <span class="count-tag">{{ villages.length }} villages</span>
+        </div>
+        <h3>Villages Directory</h3>
+        <p class="card-desc">Unique serviced agricultural villages, mandals, and field sector geographic points.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('VILLAGES')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('VILLAGES')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 8. Crops Registry -->
+      <div class="entity-card">
+        <div class="card-top">
+          <div class="icon-wrap crop-icon">
+            <span class="material-icons">eco</span>
+          </div>
+          <span class="count-tag">{{ crops.length }} crops</span>
+        </div>
+        <h3>Crops Registry</h3>
+        <p class="card-desc">Approved agricultural regional crop names, varieties, and precision spray targets.</p>
+        <div class="card-actions">
+          <button class="btn-card-view" (click)="openViewDialog('CROPS')">
+            <span class="material-icons icon-sm">visibility</span>
+            <span>View</span>
+          </button>
+          <button class="btn-card-export" (click)="exportTableToExcel('CROPS')" [disabled]="isLoading">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export to Excel</span>
+          </button>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Live Data Preview Card -->
-  <section class="preview-section">
-    <div class="preview-card">
-      <div class="preview-header">
-        <div class="preview-title">
-          <span class="material-icons">preview</span>
+  <!-- ================= UNIFIED TABLE VIEWER MODAL DIALOG ================= -->
+  <div class="modal-backdrop" *ngIf="isViewDialogOpen" (click)="closeViewDialog()">
+    <div class="modal-card animate-scale-in" (click)="$event.stopPropagation()">
+      
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="header-title-wrap">
+          <span class="material-icons header-glyph">{{ activeTableIcon }}</span>
           <div>
-            <h3>Database Snapshot & Workbook Hierarchy</h3>
-            <p>Verified synchronization with Spring Boot database on port 8080</p>
+            <h3>{{ activeTableTitle }}</h3>
+            <p>Showing {{ dialogFilteredRows.length }} total rows matching search and filter criteria</p>
           </div>
         </div>
-        <span class="sync-stamp" *ngIf="lastSyncedAt">
-          <span class="material-icons icon-sm">schedule</span>
-          Last synced: {{ lastSyncedAt | date:'mediumTime' }}
+        <div class="header-controls">
+          <button class="btn-header-export" (click)="exportTableToExcel(activeTableType!)" [disabled]="isExporting">
+            <span class="material-icons icon-sm">download</span>
+            <span>Export View (.xlsx)</span>
+          </button>
+          <button class="btn-modal-close" (click)="closeViewDialog()">✕</button>
+        </div>
+      </div>
+
+      <!-- Filter & Search Toolbar Inside Modal -->
+      <div class="modal-toolbar">
+        <div class="search-box">
+          <span class="material-icons search-glyph">search</span>
+          <input 
+            type="text" 
+            placeholder="Search across all fields..." 
+            [(ngModel)]="dialogSearchTerm" 
+            (input)="applyDialogFiltersAndPagination()">
+        </div>
+        <span class="filter-count-badge">
+          <span class="material-icons icon-xs">filter_list</span>
+          {{ dialogFilteredRows.length }} rows found
         </span>
       </div>
 
-      <div class="table-responsive">
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th>Dataset Division</th>
-              <th>Total Entries</th>
-              <th>Status</th>
-              <th>Format</th>
-              <th>Destination Excel Tab</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="featured-preview-row">
-              <td>
-                <div class="division-title">
-                  <span class="material-icons icon-sm" style="color: #059669;">payments</span>
-                  <strong>Payments & Billing Ledger</strong>
-                </div>
-              </td>
-              <td>{{ payments.length }} transactions</td>
-              <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML (.xlsx)</td>
-              <td><code>Payments & Ledger</code> (Tab #1)</td>
-            </tr>
-            <tr>
-              <td>
-                <div class="division-title">
-                  <span class="material-icons icon-sm" style="color: #0284c7;">receipt_long</span>
-                  <strong>Flight Mission Logs</strong>
-                </div>
-              </td>
-              <td>{{ logs.length }}</td>
-              <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML (.xlsx)</td>
-              <td><code>Mission Logs</code></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="division-title">
-                  <span class="material-icons icon-sm" style="color: #7c3aed;">calendar_month</span>
-                  <strong>Customer Bookings</strong>
-                </div>
-              </td>
-              <td>{{ bookings.length }}</td>
-              <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML (.xlsx)</td>
-              <td><code>Bookings</code></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="division-title">
-                  <span class="material-icons icon-sm" style="color: #475569;">flight</span>
-                  <strong>Drone Registry</strong>
-                </div>
-              </td>
-              <td>{{ drones.length }}</td>
-              <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML (.xlsx)</td>
-              <td><code>Drone Fleet</code></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="division-title">
-                  <span class="material-icons icon-sm" style="color: #ea580c;">dataset</span>
-                  <strong>Villages & Crops Metadata</strong>
-                </div>
-              </td>
-              <td>{{ villages.length }} villages, {{ crops.length }} crops</td>
-              <td><span class="status-chip active">Ready</span></td>
-              <td>OpenXML (.xlsx)</td>
-              <td><code>Villages Directory</code>, <code>Crops Registry</code></td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Modal Body: Dynamic Table Rendering -->
+      <div class="modal-body">
+        <div class="table-responsive">
+          <!-- 1. MASTER CONSOLIDATED TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'MASTER'">
+            <thead>
+              <tr>
+                <th (click)="setDialogSort('logId')" class="sortable">Log #</th>
+                <th (click)="setDialogSort('bookingId')" class="sortable">Booking #</th>
+                <th (click)="setDialogSort('bookingDate')" class="sortable">Schedule Slot</th>
+                <th (click)="setDialogSort('cropOwnerName')" class="sortable">Farmer / Phone</th>
+                <th (click)="setDialogSort('cropName')" class="sortable">Crop &amp; Village</th>
+                <th (click)="setDialogSort('cropSize')" class="sortable">Area (Ac)</th>
+                <th (click)="setDialogSort('tankUsage')" class="sortable">Tanks (1:1)</th>
+                <th (click)="setDialogSort('droneId')" class="sortable">Drone ID</th>
+                <th (click)="setDialogSort('amount')" class="sortable">Total (₹)</th>
+                <th (click)="setDialogSort('paidAmount')" class="sortable">Paid (₹)</th>
+                <th (click)="setDialogSort('pendingAmount')" class="sortable">Pending (₹)</th>
+                <th (click)="setDialogSort('activityStatus')" class="sortable">Activity Status</th>
+                <th (click)="setDialogSort('paymentStatus')" class="sortable">Payment Status</th>
+                <th>Confirmed Time</th>
+                <th>Completed Time</th>
+                <th>Payment Mode</th>
+                <th>Booking Notes</th>
+                <th>Payment Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ row.logId }}</span></td>
+                <td>#{{ row.bookingId }}</td>
+                <td>
+                  <div class="cell-stack">
+                    <strong>{{ row.bookingDate | date:'dd-MM-yyyy' }}</strong>
+                    <small>⏰ {{ row.bookingTime }} ({{ row.bookingDay }})</small>
+                  </div>
+                </td>
+                <td>
+                  <div class="cell-stack">
+                    <strong>{{ row.cropOwnerName }}</strong>
+                    <small>📞 {{ row.cropOwnerPhone }}</small>
+                  </div>
+                </td>
+                <td>
+                  <span class="crop-tag">🌱 {{ row.cropName }}</span>
+                  <small class="loc-text">📍 {{ row.cropVillage }}</small>
+                </td>
+                <td><strong>{{ row.cropSize }}</strong> ac</td>
+                <td>{{ row.tankUsage }}</td>
+                <td><code>{{ row.droneId }}</code></td>
+                <td><strong>₹{{ row.amount | number:'1.2-2' }}</strong></td>
+                <td class="text-green">₹{{ row.paidAmount | number:'1.2-2' }}</td>
+                <td class="text-amber">₹{{ row.pendingAmount | number:'1.2-2' }}</td>
+                <td>
+                  <span class="status-chip" [ngClass]="row.activityStatus.toLowerCase()">{{ row.activityStatus }}</span>
+                </td>
+                <td>
+                  <span class="status-chip" [ngClass]="row.paymentStatus.toLowerCase()">{{ row.paymentStatus }}</span>
+                </td>
+                <td>{{ row.confirmedDate }} {{ row.confirmedTime }}</td>
+                <td>{{ row.completeDate }} {{ row.completeTime }}</td>
+                <td>{{ row.paymentType }}</td>
+                <td class="truncate-cell" [title]="row.bookingNotes">{{ row.bookingNotes }}</td>
+                <td class="truncate-cell" [title]="row.paymentNotes">{{ row.paymentNotes }}</td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="18" class="no-records">No master records match your search criteria.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 2. BOOKINGS TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'BOOKINGS'">
+            <thead>
+              <tr>
+                <th (click)="setDialogSort('bookingId')" class="sortable">ID</th>
+                <th (click)="setDialogSort('bookingDate')" class="sortable">Date &amp; Time</th>
+                <th (click)="setDialogSort('cropOwnerName')" class="sortable">Farmer</th>
+                <th>Phone</th>
+                <th>Crop</th>
+                <th>Village</th>
+                <th (click)="setDialogSort('cropSize')" class="sortable">Area (Ac)</th>
+                <th (click)="setDialogSort('bookingStatus')" class="sortable">Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let b of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ b.bookingId }}</span></td>
+                <td>{{ b.bookingDate | date:'dd-MM-yyyy' }} at {{ b.bookingTime || '09:00' }} ({{ b.bookingDay }})</td>
+                <td><strong>{{ b.cropOwnerName }}</strong></td>
+                <td><a href="tel:{{ b.cropOwnerPhone }}">{{ b.cropOwnerPhone }}</a></td>
+                <td>🌱 {{ b.cropName }}</td>
+                <td>📍 {{ b.cropVillage }}</td>
+                <td><strong>{{ b.cropSize }}</strong> ac</td>
+                <td><span class="status-chip" [ngClass]="b.bookingStatus.toLowerCase()">{{ b.bookingStatus }}</span></td>
+                <td>{{ b.bookingNotes || '—' }}</td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="9" class="no-records">No bookings found.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 3. MISSION LOGS TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'LOGS'">
+            <thead>
+              <tr>
+                <th (click)="setDialogSort('logId')" class="sortable">Log #</th>
+                <th>Booking #</th>
+                <th>Drone ID</th>
+                <th (click)="setDialogSort('createDate')" class="sortable">Flight Date</th>
+                <th>Farmer</th>
+                <th>Crop &amp; Village</th>
+                <th>Area (Ac)</th>
+                <th>Tanks (1:1)</th>
+                <th>Price / Tank</th>
+                <th>Amount (₹)</th>
+                <th>Confirmed On</th>
+                <th>Completed On</th>
+                <th>Activity Status</th>
+                <th>Payment Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let l of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ l.logId }}</span></td>
+                <td>#{{ l.bookingId }}</td>
+                <td><code>{{ l.droneId }}</code></td>
+                <td>{{ l.createDate | date:'dd-MM-yyyy' }} at {{ l.createTime }}</td>
+                <td>{{ l.cropOwnerName }} ({{ l.cropOwnerPhone }})</td>
+                <td>🌱 {{ l.cropName }} ({{ l.cropVillage }})</td>
+                <td><strong>{{ l.cropSize }}</strong> ac</td>
+                <td>{{ l.tankUsage }}</td>
+                <td>₹{{ l.price }}</td>
+                <td><strong>₹{{ l.amount }}</strong></td>
+                <td>{{ l.confirmedDate ? (l.confirmedDate + ' ' + l.confirmedTime) : '—' }}</td>
+                <td>{{ l.completeDate ? (l.completeDate + ' ' + l.completeTime) : '—' }}</td>
+                <td><span class="status-chip" [ngClass]="l.activityStatus.toLowerCase()">{{ l.activityStatus }}</span></td>
+                <td><span class="status-chip" [ngClass]="l.paymentStatus.toLowerCase()">{{ l.paymentStatus }}</span></td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="14" class="no-records">No mission logs found.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 4. PAYMENTS TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'PAYMENTS'">
+            <thead>
+              <tr>
+                <th (click)="setDialogSort('paymentId')" class="sortable">Payment ID</th>
+                <th>Log ID</th>
+                <th (click)="setDialogSort('totalAmount')" class="sortable">Total (₹)</th>
+                <th (click)="setDialogSort('paidAmount')" class="sortable">Paid (₹)</th>
+                <th (click)="setDialogSort('pendingAmount')" class="sortable">Pending (₹)</th>
+                <th>Status</th>
+                <th>Initial Payment</th>
+                <th>Last Payment</th>
+                <th>Mode</th>
+                <th>Transaction Audit Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ p.paymentId }}</span></td>
+                <td>#{{ p.logId }}</td>
+                <td><strong>₹{{ p.totalAmount | number:'1.2-2' }}</strong></td>
+                <td class="text-green">₹{{ p.paidAmount | number:'1.2-2' }}</td>
+                <td class="text-amber">₹{{ p.pendingAmount | number:'1.2-2' }}</td>
+                <td><span class="status-chip" [ngClass]="p.paymentStatus.toLowerCase()">{{ p.paymentStatus }}</span></td>
+                <td>{{ p.paymentDate ? (p.paymentDate + ' ' + (p.paymentTime || '')) : '—' }}</td>
+                <td>{{ p.lastPaymentDate ? (p.lastPaymentDate + ' ' + (p.lastPaymentTime || '')) : '—' }}</td>
+                <td>{{ p.paymentType || 'CASH' }}</td>
+                <td class="truncate-cell" [title]="p.paymentNotes">{{ p.paymentNotes || '—' }}</td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="10" class="no-records">No payments found.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 5. REPAIRS TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'REPAIRS'">
+            <thead>
+              <tr>
+                <th (click)="setDialogSort('repairId')" class="sortable">Repair ID</th>
+                <th>Repair Description</th>
+                <th (click)="setDialogSort('amount')" class="sortable">Amount (₹)</th>
+                <th>Date &amp; Time</th>
+                <th>Workshop Location</th>
+                <th>Linked Booking ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ r.repairId }}</span></td>
+                <td>{{ r.repairNote }}</td>
+                <td class="amount-val">₹{{ r.amount | number:'1.2-2' }}</td>
+                <td>{{ r.repairDate | date:'dd-MM-yyyy' }} at {{ r.repairTime }}</td>
+                <td>📍 {{ r.location }}</td>
+                <td>{{ r.bookingId ? ('#' + r.bookingId) : '—' }}</td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="6" class="no-records">No repair records found.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 6. DRONES TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'DRONES'">
+            <thead>
+              <tr>
+                <th>Hardware ID</th>
+                <th>Model / Machine Name</th>
+                <th>Owner / Chief Pilot</th>
+                <th>Phone Number</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let d of dialogDisplayedRows">
+                <td><code>{{ d.droneId }}</code></td>
+                <td><strong>{{ d.droneName }}</strong></td>
+                <td>{{ d.droneOwnerName }}</td>
+                <td><a href="tel:{{ d.droneOwnerPhone }}">📞 {{ d.droneOwnerPhone }}</a></td>
+                <td><span class="status-chip" [ngClass]="d.droneStatus.toLowerCase()">{{ d.droneStatus }}</span></td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="5" class="no-records">No drones registered.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 7. TARIFF RATES TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'RATES'">
+            <thead>
+              <tr>
+                <th>Rate ID</th>
+                <th>Price / Tank (1 Acre)</th>
+                <th>Created Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ r.rateId }}</span></td>
+                <td><strong class="text-blue">₹{{ r.price | number:'1.2-2' }}</strong> per tank</td>
+                <td>{{ r.createdAt ? (r.createdAt | date:'medium') : '—' }}</td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="3" class="no-records">No tariff rates registered.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 8. VILLAGES TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'VILLAGES'">
+            <thead>
+              <tr>
+                <th>Village ID</th>
+                <th>Village / Sector Location Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let v of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ v.villageId }}</span></td>
+                <td><strong>📍 {{ v.name }}</strong></td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="2" class="no-records">No villages found.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 9. CROPS TABLE -->
+          <table class="data-table" *ngIf="activeTableType === 'CROPS'">
+            <thead>
+              <tr>
+                <th>Crop ID</th>
+                <th>Crop Registry Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of dialogDisplayedRows">
+                <td><span class="badge-id">#{{ c.cropId }}</span></td>
+                <td><strong>🌱 {{ c.name }}</strong></td>
+              </tr>
+              <tr *ngIf="dialogDisplayedRows.length === 0">
+                <td colspan="2" class="no-records">No crops found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      <!-- Modal Footer with Pagination -->
+      <footer class="modal-footer">
+        <div class="pagination-info">
+          Showing <strong>{{ (dialogCurrentPage * dialogPageSize) + 1 }}</strong> - 
+          <strong>{{ (dialogCurrentPage * dialogPageSize) + dialogDisplayedRows.length }}</strong> of 
+          <strong>{{ dialogFilteredRows.length }}</strong> rows
+        </div>
+
+        <div class="pagination-controls">
+          <div class="page-size">
+            <label>Rows:</label>
+            <select [ngModel]="dialogPageSize" (ngModelChange)="onDialogPageSizeChange($event)">
+              <option *ngFor="let s of dialogPageSizeOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+
+          <div class="page-btns">
+            <button [disabled]="dialogCurrentPage === 0" (click)="goToDialogPage(dialogCurrentPage - 1)">‹</button>
+            <button 
+              *ngFor="let p of getDialogPageNumbers()" 
+              [class.active]="p === dialogCurrentPage" 
+              (click)="goToDialogPage(p)">
+              {{ p + 1 }}
+            </button>
+            <button [disabled]="dialogCurrentPage >= dialogTotalPages - 1" (click)="goToDialogPage(dialogCurrentPage + 1)">›</button>
+          </div>
+
+          <button class="btn-close-footer" (click)="closeViewDialog()">Close</button>
+        </div>
+      </footer>
+
     </div>
-  </section>
+  </div>
 </div>
