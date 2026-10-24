@@ -14,16 +14,7 @@
         </div>
       </a>
 
-      <!-- Mobile Hamburger Toggle -->
-      <button 
-        type="button" 
-        class="mobile-menu-toggle" 
-        (click)="toggleMobileMenu()" 
-        aria-label="Toggle navigation menu">
-        <span class="material-icons">{{ isMobileMenuOpen ? 'close' : 'menu' }}</span>
-      </button>
-
-      <!-- Navigation Links -->
+      <!-- Navigation Links (Desktop Menu / Mobile Slide-Out Drawer) -->
       <div class="nav-menu" [class.mobile-open]="isMobileMenuOpen">
         <!-- Booking & Scheduling -->
         <a 
@@ -52,7 +43,7 @@
           (click)="closeMobileMenu()"
           class="nav-link">
           <span class="material-icons link-icon">receipt_long</span>
-          <span>Spray Logs & Ledger</span>
+          <span>Spray Logs &amp; Ledger</span>
         </a>
 
         <!-- Maintenance & Diagnostics -->
@@ -81,35 +72,14 @@
           routerLinkActive="active" 
           (click)="closeMobileMenu()"
           class="nav-link">
-          <span class="material-icons link-icon">receipt</span>
+          <span class="material-icons link-icon">assessment</span>
           <span>Reports</span>
         </a>
-
-        <!-- Mobile-Only Auth Action -->
-        <!-- <div class="mobile-auth-action" *ngIf="auth.isAuthenticated()">
-          <div class="mobile-user-info">
-            <span class="material-icons icon-sm">person</span>
-            <span>Logged in: <strong>{{ auth.currentUser()?.username }}</strong></span>
-          </div>
-          <button type="button" class="btn-mobile-logout" (click)="onLogout()">
-            <span class="material-icons icon-sm">logout</span>
-            <span>Sign Out</span>
-          </button>
-        </div>
-
-        <a 
-          *ngIf="!auth.isAuthenticated()" 
-          routerLink="/login" 
-          (click)="closeMobileMenu()" 
-          class="mobile-login-link">
-          <span class="material-icons icon-sm">login</span>
-          <span>Sign In to Dashboard</span>
-        </a> -->
       </div>
 
-      <!-- Quick Contact Hotline Action & Auth Strip -->
-      <div class="nav-actions">
-        <!-- Desktop Auth Strip -->
+      <!-- Top Right Corner Controls: Auth Button & Mobile Toggle -->
+      <div class="navbar-top-right">
+        <!-- User Authentication Strip (Top Right) -->
         <div class="user-auth-strip">
           <!-- Logged In State -->
           <div *ngIf="auth.isAuthenticated()" class="user-session-chip">
@@ -131,10 +101,15 @@
           </a>
         </div>
 
-        <a href="tel:9642343838" class="hotline-pill" title="Call Pilot Jagadeesh">
-          <span class="pulse-dot"></span>
-          <span class="hotline-text" style="color: blanchedalmond;">📞 +91 - 9642343838</span>
-        </a>
+        <!-- Mobile Hamburger Menu Button -->
+        <button 
+          type="button" 
+          class="mobile-menu-toggle" 
+          (click)="toggleMobileMenu()" 
+          [class.is-active]="isMobileMenuOpen"
+          aria-label="Toggle navigation menu">
+          <span class="material-icons">{{ isMobileMenuOpen ? 'close' : 'menu' }}</span>
+        </button>
       </div>
     </nav>
   </header>
@@ -163,12 +138,12 @@
             <h3>Sri Jagadeeswara AGRI Drone Spraying</h3>
           </div>
           <p class="footer-desc">
-            Autonomous aerial crop protection and precision fertilizer & pesticide spraying services across East Godavari. 
+            Autonomous aerial crop protection and precision fertilizer &amp; pesticide spraying services across East Godavari. 
             Delivering micron-level droplet atomization, saving up to 90% water, and protecting farm yields with zero soil compaction.
           </p>
           <div class="fleet-telemetry-badge">
             <span class="dot-online"></span>
-            <span>Pilot Station & Ground Telemetry: <strong>Active Online</strong></span>
+            <span>Pilot Station &amp; Ground Telemetry: <strong>Active Online</strong></span>
           </div>
         </div>
 
@@ -176,10 +151,10 @@
           <h4>Navigation</h4>
           <ul class="footer-links">
             <li><a routerLink="/booking">Book a Drone Spraying Mission</a></li>
-            <li><a routerLink="/operations">Operations & Dispatch Board</a></li>
-            <li><a routerLink="/logs">Flight Logs & Payment Ledger</a></li>
-            <li><a routerLink="/maintenance">Maintenance & Repairs Tracker</a></li>
-            <li><a routerLink="/settings">Tariff, Drones & Master Settings</a></li>
+            <li><a routerLink="/operations">Operations &amp; Dispatch Board</a></li>
+            <li><a routerLink="/logs">Flight Logs &amp; Payment Ledger</a></li>
+            <li><a routerLink="/maintenance">Maintenance &amp; Diagnostics</a></li>
+            <li><a routerLink="/settings">Tariff, Drones &amp; Master Settings</a></li>
           </ul>
         </div>
 
@@ -198,29 +173,29 @@
           <h4>Certified Pilot Station</h4>
           <div class="pilot-badge-box">
             <span class="material-icons pilot-icon">person</span>
-            <span class="pilot-label"> Chief Drone Pilot & Operator: </span>
-            <strong class="pilot-name" style="color:cornflowerblue;"> V. Jagadeesh</strong>
+            <span class="pilot-label">Chief Drone Pilot &amp; Operator: </span>
+            <strong class="pilot-name">V. Jagadeesh</strong>
           </div>
 
           <p class="contact-line">
             <span class="material-icons loc-icon">location_on</span>
-            <span style="color:cornflowerblue;"> Near Hanuman Statue, Opposite Old Panchayat, Peda Rayavaram, Rangampeta Mandal, East Godavari District, Andhra Pradesh - 533291</span>
+            <span>Near Hanuman Statue, Opposite Old Panchayat, Peda Rayavaram, Rangampeta Mandal, East Godavari, AP - 533291</span>
           </p>
 
           <p class="contact-line">
             <span class="material-icons phone-icon">phone</span>
-            <a href="tel:9642343838" class="contact-link" style="color: blanchedalmond;"> +91 - 9642343838</a>, 
-            <a href="tel:9032343838" class="contact-link" style="color: blanchedalmond;"> +91 - 9032343838</a>
+            <a href="tel:9642343838" class="contact-link">+91 9642343838</a>, 
+            <a href="tel:9032343838" class="contact-link">+91 9032343838</a>
           </p>
 
           <p class="contact-line">
             <span class="material-icons mail-icon">email</span>
-            <a href="mailto:sameer.sameer185@gmail.com" class="contact-link" style="color: blanchedalmond;"> sameer.sameer185&#64;gmail.com</a>
+            <a href="mailto:sameer.sameer185@gmail.com" class="contact-link">sameer.sameer185&#64;gmail.com</a>
           </p>
 
           <div class="compliance-badge">
             <span class="material-icons badge-check">verified_user</span>
-            <span>DGCA SOP & Safety Compliant</span>
+            <span>DGCA SOP &amp; Safety Compliant</span>
           </div>
         </div>
       </div>

@@ -19,6 +19,11 @@
   font-size: 1.2rem;
   line-height: 1;
   vertical-align: middle;
+
+  &.icon-sm {
+    font-size: 1rem;
+    margin-right: 4px;
+  }
 }
 
 /* =========================================================
@@ -28,7 +33,7 @@
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: rgba(10, 25, 18, 0.92);
+  background: rgba(10, 25, 18, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(52, 211, 153, 0.2);
@@ -38,26 +43,28 @@
 .navbar-container {
   max-width: 1800px;
   margin: 0 auto;
-  padding: 0.75rem 1.25rem;
+  padding: 0.65rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1.25rem;
   position: relative;
 }
 
-/* Brand styling */
+/* 1. Left Column: Brand Logo */
 .brand-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-decoration: none;
   cursor: pointer;
+  flex-shrink: 0;
+  z-index: 2;
 
   .logo-icon-wrapper {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     border-radius: 10px;
     background: linear-gradient(135deg, #065f46, #047857);
     border: 1px solid #34d399;
@@ -67,7 +74,7 @@
     box-shadow: 0 0 14px rgba(52, 211, 153, 0.3);
 
     .drone-icon {
-      font-size: 1.35rem;
+      font-size: 1.3rem;
       color: #ecfdf5;
     }
 
@@ -75,7 +82,7 @@
       position: absolute;
       bottom: -3px;
       right: -3px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #34d399;
       background: #064e3b;
       border-radius: 50%;
@@ -87,61 +94,49 @@
     flex-direction: column;
 
     .brand-title {
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 800;
       letter-spacing: -0.02em;
       background: linear-gradient(90deg, #ecfdf5, #6ee7b7);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      line-height: 1.2;
     }
 
     .brand-subtitle {
       font-size: 0.65rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       color: #94a3b8;
       font-weight: 600;
+      line-height: 1.2;
     }
   }
 }
 
-/* Mobile Hamburger Toggle */
-.mobile-menu-toggle {
-  display: none;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #ecfdf5;
-  padding: 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  line-height: 1;
-
-  .material-icons {
-    font-size: 1.5rem;
-  }
-}
-
-/* Navigation Links */
+/* 2. Center Column: Centered Navigation Menu */
 .nav-menu {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(15, 23, 42, 0.65);
-  padding: 4px 6px;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 3px 6px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0 auto; /* Centers between left brand and right auth */
 
   .nav-link {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 7px 14px;
+    gap: 6px;
+    padding: 7px 12px;
     border-radius: 8px;
     color: #cbd5e1;
     text-decoration: none;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
     white-space: nowrap;
 
     .link-icon {
@@ -150,7 +145,7 @@
 
     &:hover {
       color: #ecfdf5;
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     &.active {
@@ -161,77 +156,124 @@
   }
 }
 
-/* Nav Actions */
-.nav-actions {
+/* 3. Right Column: Top Right Corner Controls (Auth + Mobile Toggle) */
+.navbar-top-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
+  z-index: 2;
+}
 
-  .fleet-status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(6, 78, 59, 0.5);
-    border: 1px solid rgba(52, 211, 153, 0.4);
-    padding: 6px 12px;
-    border-radius: 999px;
+/* User Auth Strip (Top Right) */
+.user-auth-strip {
+  display: inline-flex;
+  align-items: center;
 
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: #34d399;
-      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
-      animation: pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
-    }
-
-    .pill-text {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #a7f3d0;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-  }
-
-  .btn-primary-nav {
+  .btn-login-nav {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    text-decoration: none;
     background: linear-gradient(135deg, #10b981, #059669);
     color: #ffffff;
-    font-size: 0.85rem;
+    text-decoration: none;
+    font-size: 0.82rem;
     font-weight: 700;
-    padding: 8px 16px;
+    padding: 7px 14px;
     border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
     transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
     white-space: nowrap;
 
-    .btn-icon {
-      font-size: 1.1rem;
+    .material-icons {
+      font-size: 1.05rem;
     }
 
     &:hover {
+      background: linear-gradient(135deg, #059669, #047857);
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+  }
+
+  .user-session-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    padding: 3px 6px 3px 10px;
+    border-radius: 999px;
+
+    .user-avatar {
+      font-size: 1.2rem;
+      color: #34d399;
+    }
+
+    .username {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #ecfdf5;
+      text-transform: capitalize;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-logout {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      padding: 0;
+
+      .material-icons {
+        font-size: 0.95rem;
+      }
+
+      &:hover {
+        background: #dc2626;
+        color: #ffffff;
+      }
     }
   }
 }
 
-@keyframes pulse-ring {
-  to {
-    box-shadow: 0 0 0 8px rgba(52, 211, 153, 0);
+/* Mobile Hamburger Toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  color: #ecfdf5;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.2s ease;
+
+  .material-icons {
+    font-size: 1.45rem;
+  }
+
+  &:hover, &.is-active {
+    background: #059669;
+    color: #ffffff;
   }
 }
 
-/* Mobile backdrop */
+/* Mobile Backdrop */
 .mobile-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   z-index: 998;
 }
 
@@ -244,11 +286,10 @@
   position: relative;
   margin-top: auto;
   border-top: 1px solid rgba(52, 211, 153, 0.2);
-  border-radius: 8px;
 
   .footer-top-accent {
     position: absolute;
-    top: 2px;
+    top: 0;
     left: 0;
     right: 0;
     height: 3px;
@@ -258,20 +299,20 @@
   .footer-container {
     max-width: 1800px;
     margin: 0 auto;
-    padding: 3.5rem 1.5rem 1.5rem 1.5rem;
+    padding: 3.5rem 1.25rem 1.5rem 1.25rem;
   }
 
   .footer-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1.2fr 1.3fr;
-    gap: 2.5rem;
+    gap: 2.25rem;
     margin-bottom: 2.5rem;
   }
 
   .footer-col {
     h4 {
       color: #ecfdf5;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 700;
       margin-top: 0;
       margin-bottom: 1.2rem;
@@ -281,7 +322,7 @@
 
     &.brand-col {
       .footer-brand {
-        //display: flex;
+        display: flex;
         align-items: center;
         gap: 8px;
         margin-bottom: 0.75rem;
@@ -293,18 +334,18 @@
 
         h3 {
           margin: 0;
-          font-size: 1.3rem;
+          font-size: 1.25rem;
           font-weight: 800;
           color: #34d399;
         }
       }
 
       .footer-desc {
-        font-size: 0.88rem;
+        font-size: 0.86rem;
         line-height: 1.6;
         color: #cbd5e1;
         margin-bottom: 1.2rem;
-        max-width: 420px;
+        max-width: 440px;
       }
     }
   }
@@ -339,7 +380,7 @@
       a {
         color: #94a3b8;
         text-decoration: none;
-        font-size: 0.88rem;
+        font-size: 0.86rem;
         transition: all 0.2s ease;
         display: inline-block;
 
@@ -357,7 +398,7 @@
     margin: 0;
 
     li {
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       margin-bottom: 0.65rem;
       display: flex;
       justify-content: space-between;
@@ -369,21 +410,55 @@
     }
   }
 
+  .pilot-badge-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 0.85rem;
+    font-size: 0.82rem;
+
+    .pilot-icon { color: #34d399; font-size: 1.1rem; }
+    .pilot-label { color: #94a3b8; }
+    .pilot-name { color: #6ee7b7; font-weight: 700; }
+  }
+
   .contact-line {
-    font-size: 0.85rem;
-    margin: 0 0 0.5rem 0;
+    font-size: 0.84rem;
+    margin: 0 0 0.6rem 0;
     color: #cbd5e1;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    line-height: 1.4;
+
+    .material-icons {
+      font-size: 1.05rem;
+      color: #34d399;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+
+    .contact-link {
+      color: #ffedd5;
+      text-decoration: none;
+      font-weight: 600;
+      &:hover { color: #34d399; text-decoration: underline; }
+    }
   }
 
   .compliance-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin-top: 0.75rem;
+    margin-top: 0.6rem;
     background: rgba(234, 179, 8, 0.12);
     border: 1px solid rgba(234, 179, 8, 0.4);
     color: #fde047;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     font-weight: 700;
     padding: 6px 10px;
     border-radius: 6px;
@@ -419,10 +494,11 @@
 }
 
 /* =========================================================
-   RESPONSIVENESS (Breakpoints for Tablet & Mobile)
+   RESPONSIVE BREAKPOINTS (Mobile & Tablet Layouts)
 ========================================================= */
-@media (max-width: 1080px) {
-  .nav-menu .nav-link span:not(.link-icon) {
+@media (max-width: 1024px) {
+  .nav-menu .nav-link {
+    padding: 7px 9px;
     font-size: 0.82rem;
   }
 
@@ -432,205 +508,114 @@
   }
 }
 
-@media (max-width: 868px) {
-  .mobile-menu-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* Mobile Breakpoint (< 920px) */
+@media (max-width: 920px) {
+  .navbar-container {
+    padding: 0.6rem 1rem;
   }
 
+  /* Hamburger toggle appears */
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  /* Compact username chip on smaller screens */
+  .user-auth-strip .user-session-chip {
+    padding: 2px 4px 2px 8px;
+    .username {
+      max-width: 75px;
+    }
+  }
+
+  /* Transform center nav-menu into slide-down mobile drawer */
   .nav-menu {
     display: none;
+    margin: 0; /* Clear desktop centering */
     position: absolute;
     top: calc(100% + 1px);
     left: 0;
     right: 0;
-    background: #0d1f17;
+    background: #091711;
     flex-direction: column;
-    padding: 1rem;
-    border-radius: 0 0 12px 12px;
-    border: 1px solid rgba(52, 211, 153, 0.2);
+    padding: 0.85rem;
+    gap: 6px;
+    border-radius: 0 0 16px 16px;
+    border: 1px solid rgba(52, 211, 153, 0.25);
     border-top: none;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
     z-index: 999;
 
     &.mobile-open {
       display: flex;
-      animation: mobileSlideDown 0.2s ease-out;
+      animation: mobileSlideDown 0.22s ease-out forwards;
     }
 
     .nav-link {
       width: 100%;
       box-sizing: border-box;
-      padding: 10px 14px;
-    }
-  }
+      padding: 11px 16px;
+      font-size: 0.92rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
 
-  .fleet-status-pill {
-    display: none !important;
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      &.active {
+        background: linear-gradient(135deg, #059669, #10b981);
+        border-color: #10b981;
+      }
+    }
   }
 }
 
-@media (max-width: 580px) {
+/* Small Smartphone Optimization (< 480px) */
+@media (max-width: 480px) {
+  .brand-logo {
+    gap: 8px;
+
+    .logo-icon-wrapper {
+      width: 32px;
+      height: 32px;
+
+      .drone-icon { font-size: 1.1rem; }
+      .eco-icon { font-size: 0.75rem; }
+    }
+
+    .brand-text {
+      .brand-title {
+        font-size: 0.95rem;
+      }
+      .brand-subtitle {
+        font-size: 0.55rem;
+      }
+    }
+  }
+
+  .user-auth-strip .btn-login-nav {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+
   .footer-grid {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1.75rem;
   }
 
   .footer-bottom {
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
   }
 }
 
 @keyframes mobileSlideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* =========================================================
-   USER AUTHENTICATION CHIP & BUTTONS (NAVBAR)
-========================================================= */
-.user-auth-strip {
-  display: inline-flex;
-  align-items: center;
-
-  .btn-login-nav {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #ffffff;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 700;
-    padding: 7px 14px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
-    transition: all 0.2s ease;
-
-    .material-icons {
-      font-size: 1.1rem;
-    }
-
-    &:hover {
-      background: linear-gradient(135deg, #059669, #047857);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
-    }
-  }
-
-  .user-session-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(52, 211, 153, 0.4);
-    padding: 4px 6px 4px 10px;
-    border-radius: 999px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-
-    .user-avatar {
-      font-size: 1.25rem;
-      color: #34d399;
-    }
-
-    .username {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: #ecfdf5;
-      text-transform: capitalize;
-      max-width: 110px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .btn-logout {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.35);
-      color: #f87171;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      padding: 0;
-
-      .material-icons {
-        font-size: 1rem;
-      }
-
-      &:hover {
-        background: #dc2626;
-        border-color: #dc2626;
-        color: #ffffff;
-        transform: scale(1.08);
-      }
-    }
-  }
-}
-
-/* Mobile Drawer Auth Elements */
-.mobile-auth-action {
-  width: 100%;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  .mobile-user-info {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    color: #94a3b8;
-
-    strong {
-      color: #34d399;
-      text-transform: capitalize;
-    }
-  }
-
-  .btn-mobile-logout {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    background: #7f1d1d;
-    color: #fecaca;
-    border: 1px solid #dc2626;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-  }
-}
-
-.mobile-login-link {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: #10b981;
-  color: white;
-  text-decoration: none;
-  font-weight: 700;
-  border-radius: 8px;
-  box-sizing: border-box;
 }
