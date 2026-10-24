@@ -12,9 +12,12 @@
   <header class="admin-header">
     <div>
       <div class="title-row">
-        <h1>Drone Spraying Schedule Confirmations</h1>
+        <h1>
+          <span class="material-icons title-glyph">flight_takeoff</span>
+          Drone Spraying Schedule Confirmations
+        </h1>
       </div>
-      <p class="subtitle">Review scheduled missions, assign drone hardware, manage daily capacities, and dispatch WhatsApp notices</p>
+      <p class="subtitle">Review scheduled missions, assign drone hardware &amp; tariff rates, and dispatch confirmed mission logs</p>
     </div>
 
     <div class="header-tools">
@@ -39,7 +42,7 @@
       </div>
 
       <a routerLink="/booking" class="btn-create-nav">
-        <span class="material-icons icon-sm">edit_calendar</span>
+        <span class="material-icons icon-sm">add_circle</span>
         <span>New Booking</span>
       </a>
     </div>
@@ -49,7 +52,7 @@
   <div class="rate-strip">
     <div class="rate-info">
       <span class="material-icons strip-icon">payments</span>
-      <span>Active Rate: <strong>₹{{ currentRate.price }}</strong> per tank (1 Acre = 1 Tank)</span>
+      <span>Database Rates Registered: <strong>{{ availableRates.length }} Tariff Options</strong></span>
     </div>
     <div class="capacity-info">
       <span class="material-icons strip-icon">speed</span>
@@ -60,20 +63,25 @@
   <!-- Operational KPI Summary Cards -->
   <section class="kpi-grid">
     <div class="kpi-card">
-      <span class="kpi-label">Total Missions</span>
+      <div class="kpi-header">
+        <span class="material-icons kpi-icon">flight</span>
+        <span class="kpi-label">Total Missions</span>
+      </div>
       <strong class="kpi-val">{{ totalCount }}</strong>
     </div>
     <div class="kpi-card pending">
-      <span class="kpi-label">Pending Approval</span>
+      <div class="kpi-header">
+        <span class="material-icons kpi-icon">schedule</span>
+        <span class="kpi-label">Pending Confirmation</span>
+      </div>
       <strong class="kpi-val">{{ pendingCount }}</strong>
     </div>
     <div class="kpi-card confirmed">
-      <span class="kpi-label">Confirmed / Dispatched</span>
+      <div class="kpi-header">
+        <span class="material-icons kpi-icon">task_alt</span>
+        <span class="kpi-label">Confirmed &amp; Logged</span>
+      </div>
       <strong class="kpi-val">{{ confirmedCount }}</strong>
-    </div>
-    <div class="kpi-card revenue">
-      <span class="kpi-label">Page Est. Value</span>
-      <strong class="kpi-val">₹{{ totalRevenue | number }}</strong>
     </div>
   </section>
 
@@ -81,8 +89,11 @@
   <div class="calendar-card" *ngIf="activeView === 'CALENDAR'">
     <div class="calendar-toolbar">
       <div class="month-title-wrap">
-        <h2>{{ currentCalendarDate | date:'MMMM yyyy' }}</h2>
-        <span class="legend-note">Click any date to view missions, confirm flights, edit, or dispatch notices</span>
+        <h2>
+          <span class="material-icons icon-sm">event_note</span>
+          {{ currentCalendarDate | date:'MMMM yyyy' }}
+        </h2>
+        <span class="legend-note">Click any date to view missions, assign drone &amp; rate, and confirm</span>
       </div>
 
       <div class="calendar-actions">
@@ -134,7 +145,7 @@
             class="booking-chip" 
             *ngFor="let b of day.bookings.slice(0, 2)"
             [ngClass]="b.bookingStatus?.toLowerCase()">
-            <span class="chip-crop">{{ b.cropName }}</span>
+            <span class="chip-crop">{{ b.cropName }} ({{ b.bookingTime || '09:00' }})</span>
             <span class="chip-acres">{{ b.cropSize }}ac</span>
           </div>
 
@@ -144,7 +155,7 @@
         </div>
 
         <div class="day-empty" *ngIf="day.bookings.length === 0 && day.isCurrentMonth">
-          <span class="add-hint">Open</span>
+          <span class="add-hint">+ Open</span>
         </div>
 
         <div class="locked-banner" *ngIf="day.isFull">
@@ -168,7 +179,7 @@
       </div>
 
       <div class="filter-dropdown">
-        <label>Status:</label>
+        <label><span class="material-icons icon-sm">filter_list</span> Status:</label>
         <select [(ngModel)]="selectedStatusFilter" (change)="loadData(0)">
           <option value="ALL">All Statuses</option>
           <option value="PENDING">Pending</option>
@@ -178,7 +189,7 @@
       </div>
 
       <div class="filter-dropdown">
-        <label>Crop:</label>
+        <label><span class="material-icons icon-sm">eco</span> Crop:</label>
         <select [(ngModel)]="selectedCropFilter" (change)="loadData(0)">
           <option value="ALL">All Crops</option>
           <option *ngFor="let c of cropsList" [value]="c.name">{{ c.name }}</option>
@@ -205,18 +216,16 @@
                 ID <span class="sort-icon">{{ sortBy === 'bookingId' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
               <th (click)="toggleSort('bookingDate')" class="sortable">
-                Date (DD-MM-YYYY) <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+                Scheduled Slot <span class="sort-icon">{{ sortBy === 'bookingDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
               <th (click)="toggleSort('cropOwnerName')" class="sortable">
                 Farmer / Contact <span class="sort-icon">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
-              <th>Crop & Village</th>
+              <th>Crop &amp; Village</th>
               <th (click)="toggleSort('cropSize')" class="sortable">
                 Area (Ac) <span class="sort-icon">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
-              <th (click)="toggleSort('amount')" class="sortable">
-                Total Amount <span class="sort-icon">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-              </th>
+              <th>Confirmed Date</th>
               <th (click)="toggleSort('bookingStatus')" class="sortable">
                 Status <span class="sort-icon">{{ sortBy === 'bookingStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
@@ -236,13 +245,15 @@
               <td>
                 <div class="date-cell">
                   <span class="date">{{ b.bookingDate | date:'dd-MM-yyyy' }}</span>
-                  <span class="day">{{ b.bookingDay }}</span>
+                  <span class="slot-badge">⏰ {{ b.bookingTime || '09:00' }} ({{ b.bookingDay }})</span>
                 </div>
               </td>
               <td>
                 <div class="farmer-cell">
                   <strong>{{ b.cropOwnerName }}</strong>
-                  <a href="tel:{{ b.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">📞 {{ b.cropOwnerPhone }}</a>
+                  <a href="tel:{{ b.cropOwnerPhone }}" (click)="$event.stopPropagation()" class="phone-link">
+                    <span class="material-icons icon-sm">phone</span> {{ b.cropOwnerPhone }}
+                  </a>
                 </div>
               </td>
               <td>
@@ -250,7 +261,28 @@
                 <small class="village-text">📍 {{ b.cropVillage }}</small>
               </td>
               <td><strong>{{ b.cropSize }}</strong> ac</td>
-              <td class="amount-text">₹{{ b.amount }}</td>
+              
+              <!-- Updated Confirmed Date Column -->
+              <td>
+                <div class="lifecycle-cell">
+                  <ng-container *ngIf="b.bookingStatus === 'CONFIRMED'">
+                    <span class="confirm-pill" *ngIf="getLogForBooking(b.bookingId)?.confirmedDate as cDate">
+                      <span class="material-icons icon-xs">check_circle</span>
+                      {{ cDate | date:'dd-MM-yy' }} {{ getLogForBooking(b.bookingId)?.confirmedTime }}
+                    </span>
+                    <span class="confirm-pill" *ngIf="!getLogForBooking(b.bookingId)?.confirmedDate">
+                      <span class="material-icons icon-xs">check_circle</span> Confirmed
+                    </span>
+                  </ng-container>
+                  <span class="pending-pill" *ngIf="b.bookingStatus === 'PENDING'">
+                    <span class="material-icons icon-xs">schedule</span> Awaiting Pilot
+                  </span>
+                  <span class="cancel-pill" *ngIf="b.bookingStatus === 'CANCELLED'">
+                    <span class="material-icons icon-xs">cancel</span> Cancelled
+                  </span>
+                </div>
+              </td>
+
               <td>
                 <span class="status-pill" [ngClass]="b.bookingStatus!.toLowerCase()">
                   {{ b.bookingStatus }}
@@ -273,7 +305,7 @@
                     type="button"
                     *ngIf="b.bookingStatus === 'PENDING'" 
                     class="btn-mat-icon confirm" 
-                    title="Confirm Mission & Assign Drone" 
+                    title="Assign Drone &amp; Rate, Confirm Mission" 
                     (click)="openActionDialog('CONFIRM', b, $event)">
                     <span class="material-icons">check_circle</span>
                   </button>
@@ -340,7 +372,7 @@
     <div class="modal-box day-missions-box animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <div class="head-title">
-          <span class="material-icons icon-sm">event</span>
+          <span class="material-icons header-glyph">event</span>
           <div>
             <h3>Scheduled Missions for {{ selectedCalendarDay?.dateStr | date:'fullDate' }}</h3>
             <span class="capacity-subtitle" [class.full-warn]="selectedCalendarDay?.isFull">
@@ -364,7 +396,7 @@
           <span class="material-icons empty-icon">calendar_today</span>
           <p>No spraying missions booked for this date.</p>
           <a routerLink="/booking" class="btn-create-nav" (click)="closeDayMissionsDialog()">
-            <span class="material-icons icon-sm">add</span>
+            <span class="material-icons icon-sm">add_circle</span>
             <span>Create a Booking</span>
           </a>
         </div>
@@ -380,28 +412,40 @@
                 <span class="b-id">#{{ b.bookingId }}</span>
                 <strong>{{ b.cropOwnerName }}</strong>
                 <span class="status-pill" [ngClass]="b.bookingStatus?.toLowerCase()">{{ b.bookingStatus }}</span>
+                <span class="slot-tag">⏰ {{ b.bookingTime || '09:00' }}</span>
               </div>
               
               <div class="card-meta-line">
-                <span>📍 {{ b.cropVillage }}</span>
-                <span>🌱 {{ b.cropName }}</span>
-                <span>📐 <strong>{{ b.cropSize }} Acres</strong> ({{ b.cropSize }} Tanks)</span>
-                <span>📞 {{ b.cropOwnerPhone }}</span>
+                <span><span class="material-icons icon-sm">location_on</span> {{ b.cropVillage }}</span>
+                <span><span class="material-icons icon-sm">eco</span> {{ b.cropName }}</span>
+                <span><span class="material-icons icon-sm">straighten</span> <strong>{{ b.cropSize }} Acres</strong></span>
+                <span><span class="material-icons icon-sm">phone</span> {{ b.cropOwnerPhone }}</span>
+              </div>
+
+              <!-- Shows Confirmed Info inside Day Mission Card if available -->
+              <div class="confirmed-meta-tag" *ngIf="b.bookingStatus === 'CONFIRMED' && getLogForBooking(b.bookingId) as log">
+                <span class="material-icons icon-sm">verified</span>
+                <span>Confirmed on {{ log.confirmedDate }} ({{ log.confirmedTime }}) &bull; ₹{{ log.price }}/tank (₹{{ log.amount }})</span>
               </div>
 
               <p class="card-note" *ngIf="b.bookingNotes">📝 {{ b.bookingNotes }}</p>
             </div>
 
             <div class="card-right">
-              <strong class="price-val">₹{{ b.amount }}</strong>
-              <span class="action-cta-hint">View &amp; Actions ›</span>
+              <span class="action-cta-hint">
+                <span class="material-icons icon-sm">arrow_forward</span>
+                Assign &amp; Confirm
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn-secondary" (click)="closeDayMissionsDialog()">Close</button>
+        <button type="button" class="btn-secondary" (click)="closeDayMissionsDialog()">
+          <span class="material-icons icon-sm">close</span>
+          <span>Close</span>
+        </button>
       </div>
     </div>
   </div>
@@ -411,7 +455,7 @@
     <div class="modal-box details-box animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <div class="head-title">
-          <span class="material-icons icon-sm">flight</span>
+          <span class="material-icons header-glyph">flight</span>
           <h3>Mission Details &amp; Actions #{{ selectedBookingDetails?.bookingId }}</h3>
         </div>
         <button class="btn-close" (click)="closeRowDetails()">✕</button>
@@ -419,6 +463,7 @@
 
       <div class="modal-body" *ngIf="selectedBookingDetails">
         <div class="details-status-badge">
+          <span class="material-icons icon-sm">info</span>
           Status: 
           <span class="status-pill" [ngClass]="selectedBookingDetails.bookingStatus!.toLowerCase()">
             {{ selectedBookingDetails.bookingStatus }}
@@ -447,17 +492,21 @@
             <strong>{{ selectedBookingDetails.cropSize }} Acres ({{ selectedBookingDetails.cropSize }} Tanks)</strong>
           </div>
           <div class="detail-item">
-            <span class="detail-lbl"><span class="material-icons item-icon">event</span> Scheduled Date:</span>
-            <strong>{{ selectedBookingDetails.bookingDate | date:'dd-MM-yyyy' }} ({{ selectedBookingDetails.bookingDay }})</strong>
+            <span class="detail-lbl"><span class="material-icons item-icon">event</span> Scheduled Slot:</span>
+            <strong>{{ selectedBookingDetails.bookingDate | date:'dd-MM-yyyy' }} at {{ selectedBookingDetails.bookingTime || '09:00' }} ({{ selectedBookingDetails.bookingDay }})</strong>
           </div>
-          <div class="detail-item">
-            <span class="detail-lbl"><span class="material-icons item-icon">payments</span> Unit Rate:</span>
-            <strong>₹{{ selectedBookingDetails.price }} / tank</strong>
-          </div>
-          <div class="detail-item">
-            <span class="detail-lbl"><span class="material-icons item-icon">account_balance_wallet</span> Calculated Amount:</span>
-            <strong class="total-amt">₹{{ selectedBookingDetails.amount }}</strong>
-          </div>
+
+          <!-- Confirmed Date & Cost (Visible if Confirmed in Log) -->
+          <ng-container *ngIf="selectedBookingDetails.bookingStatus === 'CONFIRMED' && getLogForBooking(selectedBookingDetails.bookingId) as log">
+            <div class="detail-item highlight-box">
+              <span class="detail-lbl"><span class="material-icons item-icon">task_alt</span> Confirmed Date &amp; Time:</span>
+              <strong>{{ log.confirmedDate | date:'dd-MM-yyyy' }} at {{ log.confirmedTime }}</strong>
+            </div>
+            <div class="detail-item highlight-box">
+              <span class="detail-lbl"><span class="material-icons item-icon">payments</span> Rate &amp; Total Cost:</span>
+              <strong class="total-cost">₹{{ log.price }}/tank &bull; Total: ₹{{ log.amount }}</strong>
+            </div>
+          </ng-container>
         </div>
 
         <div class="notes-display" *ngIf="selectedBookingDetails.bookingNotes">
@@ -486,7 +535,7 @@
               class="btn-action-tile confirm"
               (click)="confirmFromDetails()">
               <span class="material-icons">check_circle</span>
-              <span>Confirm Mission</span>
+              <span>Assign &amp; Confirm</span>
             </button>
 
             <!-- Send WhatsApp Button -->
@@ -525,7 +574,7 @@
     <div class="modal-box animate-scale-in" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <div class="head-title">
-          <span class="material-icons icon-sm">edit</span>
+          <span class="material-icons header-glyph">edit</span>
           <h3>Edit Booking #{{ editingBooking?.bookingId }}</h3>
         </div>
         <button class="btn-close" (click)="closeEditModal()">✕</button>
@@ -554,6 +603,14 @@
 
           <div class="field">
             <label>
+              <span class="material-icons icon-label">schedule</span>
+              Scheduled Time <span class="req">*</span>
+            </label>
+            <input type="time" formControlName="bookingTime">
+          </div>
+
+          <div class="field">
+            <label>
               <span class="material-icons icon-label">event</span>
               Day
             </label>
@@ -566,7 +623,7 @@
               Crop <span class="req">*</span>
             </label>
             <select formControlName="cropName">
-              <option value="" disabled>-- Select Crop from DB --</option>
+              <option value="" disabled>-- Select Crop --</option>
               <option *ngFor="let c of cropsList" [value]="c.name">🌱 {{ c.name }}</option>
             </select>
           </div>
@@ -577,7 +634,7 @@
               Village Location <span class="req">*</span>
             </label>
             <select formControlName="cropVillage">
-              <option value="" disabled>-- Select Village from DB --</option>
+              <option value="" disabled>-- Select Village --</option>
               <option *ngFor="let v of villagesList" [value]="v.name">📍 {{ v.name }}</option>
             </select>
           </div>          
@@ -612,18 +669,6 @@
             <small class="hint">1 Acre = 1 Tank (Max {{ maxDailyAcres }} Ac/day limit)</small>
           </div>
 
-          <div class="field">
-            <label>
-              <span class="material-icons icon-label">info</span>
-              Status
-            </label>
-            <select formControlName="bookingStatus">
-              <option value="PENDING">PENDING</option>
-              <option value="CONFIRMED" disabled>CONFIRMED</option>
-              <option value="CANCELLED" disabled>CANCELLED</option>
-            </select>
-          </div>
-
           <div class="field full">
             <label>
               <span class="material-icons icon-label">notes</span>
@@ -631,10 +676,6 @@
             </label>
             <textarea formControlName="bookingNotes" placeholder="Pilot instructions, coordinates..."></textarea>
           </div>
-        </div>
-
-        <div class="amount-preview">
-          <span>Re-calculated Amount: <strong>₹{{ computedAmount }}</strong> (₹{{ currentRate.price }}/tank)</span>
         </div>
 
         <div class="modal-foot-aligned">
@@ -654,7 +695,7 @@
     </div>
   </div>
 
-  <!-- ================= ACTION CONFIRMATION DIALOG ================= -->
+  <!-- ================= ACTION CONFIRMATION DIALOG (DRONE & PRICE SELECTION) ================= -->
   <div class="modal-backdrop tier-3-backdrop" *ngIf="isConfirmActionDialogOpen" (click)="closeActionDialog()">
     <div 
       class="confirm-dialog-box animate-scale-in" 
@@ -675,24 +716,57 @@
       </p>
 
       <div class="target-summary" *ngIf="targetBooking">
-        <div><span>Farmer:</span> <strong>{{ targetBooking.cropOwnerName }} ({{ targetBooking.cropOwnerPhone }})</strong></div>
-        <div><span>Crop & Land:</span> <strong>{{ targetBooking.cropName }} ({{ targetBooking.cropSize }} Acres)</strong></div>
-        <div><span>Schedule:</span> <strong>{{ targetBooking.bookingDate | date:'dd-MM-yyyy' }} ({{ targetBooking.bookingDay }})</strong></div>
-        <div><span>Village:</span> <strong>{{ targetBooking.cropVillage }}</strong></div>
-        <div><span>Total:</span> <strong>₹{{ targetBooking.amount }}</strong></div>
+        <div><span><span class="material-icons icon-sm">person</span> Farmer:</span> <strong>{{ targetBooking.cropOwnerName }} ({{ targetBooking.cropOwnerPhone }})</strong></div>
+        <div><span><span class="material-icons icon-sm">eco</span> Crop &amp; Land:</span> <strong>{{ targetBooking.cropName }} ({{ targetBooking.cropSize }} Acres / {{ targetBooking.cropSize }} Tanks)</strong></div>
+        <div><span><span class="material-icons icon-sm">schedule</span> Scheduled Slot:</span> <strong>{{ targetBooking.bookingDate | date:'dd-MM-yyyy' }} at {{ targetBooking.bookingTime || '09:00' }}</strong></div>
+        <div><span><span class="material-icons icon-sm">location_on</span> Village:</span> <strong>{{ targetBooking.cropVillage }}</strong></div>
       </div>
 
-      <!-- DRONE ASSIGNMENT DROPDOWN -->
-      <div class="drone-select-container" *ngIf="activeActionType === 'CONFIRM'">
-        <label for="droneSelect"><strong>Assign Drone Machine to Mission:</strong> <span class="req">*</span></label>
-        <select id="droneSelect" [(ngModel)]="selectedDroneId" class="drone-dropdown">
-          <option value="" disabled>-- Select a Drone Machine --</option>
-          <option *ngFor="let drone of availableDrones" [value]="drone.droneId">
-            🛸 {{ drone.droneName }} (ID: {{ drone.droneId }}) - Owner: {{ drone.droneOwnerName }}
-          </option>
-        </select>
+      <!-- ASSIGNMENT SECTORS (DRONE + DYNAMIC TARIFF RATE) -->
+      <div class="dispatch-selectors-wrap" *ngIf="activeActionType === 'CONFIRM'">
+        <!-- 1. DRONE ASSIGNMENT DROPDOWN -->
+        <div class="selector-field">
+          <label for="droneSelect">
+            <span class="material-icons icon-sm">flight</span>
+            <strong>1. Assign Drone Machine:</strong> <span class="req">*</span>
+          </label>
+          <select id="droneSelect" [(ngModel)]="selectedDroneId" class="custom-dropdown">
+            <option value="" disabled>-- Select a Drone Machine --</option>
+            <option *ngFor="let drone of availableDrones" [value]="drone.droneId">
+              🛸 {{ drone.droneName }} (ID: {{ drone.droneId }}) - Owner: {{ drone.droneOwnerName }}
+            </option>
+          </select>
+        </div>
+
+        <!-- 2. DYNAMIC TARIFF RATE DROPDOWN FROM DATABASE -->
+        <div class="selector-field">
+          <label for="priceSelect">
+            <span class="material-icons icon-sm">payments</span>
+            <strong>2. Select Operational Tariff Rate:</strong> <span class="req">*</span>
+          </label>
+          <select id="priceSelect" [(ngModel)]="selectedPrice" class="custom-dropdown">
+            <option value="" disabled>-- Select Tariff Rate from DB --</option>
+            <option *ngFor="let rate of availableRates" [value]="rate.price">
+              💰 ₹{{ rate.price | number:'1.2-2' }} per Tank / Acre
+            </option>
+          </select>
+        </div>
+
+        <!-- Live Computed Financial Summary for Log -->
+        <div class="live-pricing-callout" *ngIf="targetBooking && selectedPrice">
+          <div class="calc-row">
+            <span>Payload Tanks: <strong>{{ targetBooking.cropSize }} Tanks</strong></span>
+            <span>Rate: <strong>₹{{ selectedPrice }}/tank</strong></span>
+          </div>
+          <div class="calc-total">
+            <span>Calculated Log Amount:</span>
+            <strong>₹{{ (targetBooking.cropSize * selectedPrice) | number:'1.2-2' }}</strong>
+          </div>
+        </div>
+
         <small class="hint-text">
-          ℹ️ Confirming will assign this drone machine and create an operational entry in the <strong>LOGS</strong> registry[cite: 7].
+          <span class="material-icons icon-sm">info</span>
+          Confirming will stamp the <strong>Confirmed Date ({{ todayDate }})</strong> and generate an operational entry in the <strong>LOGS</strong> ledger.
         </small>
       </div>
 
@@ -704,7 +778,7 @@
         <button 
           class="btn-dialog-execute" 
           [ngClass]="activeActionType?.toLowerCase()" 
-          [disabled]="(activeActionType === 'CONFIRM' && !selectedDroneId) || isActionAnimating"
+          [disabled]="(activeActionType === 'CONFIRM' && (!selectedDroneId || !selectedPrice)) || isActionAnimating"
           (click)="executeAction()">
           <span class="material-icons icon-sm" *ngIf="!isActionAnimating">
             {{ activeActionType === 'CONFIRM' ? 'check_circle' : 'cancel' }}

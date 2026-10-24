@@ -16,7 +16,7 @@ export class RateService {
     return this.http.get<Rate[]>(this.baseUrl);
   }
 
-  getCurrentRate(): Observable<Rate> {
+  getCurrentRate(): Observable<Rate> { // it gives first CreatedAt Desc 
     return this.http.get<Rate>(`${this.baseUrl}/current`);
   }
 

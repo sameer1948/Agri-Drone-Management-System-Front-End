@@ -8,7 +8,6 @@ import { DroneService } from '../../services/drone.service';
 import { Booking, BookingStatus } from '../../models/booking.model';
 import { Drone, PageResponse } from '../../models/drone.model';
 import { LogEntry } from '../../models/log.model';
-import { PaymentStatus } from '../../models/payment.model';
 import { BookingService } from '../../services/booking.service';
 import { LogService } from '../../services/log.service';
 import { Crop } from '../../models/crop.model';
@@ -57,7 +56,7 @@ export class OperationComponent implements OnInit {
   // Data & State
   bookings: Booking[] = [];
   allBookingsForCalendar: Booking[] = [];
-  currentRate: Rate = { price: 250, isActive: true, effectiveFrom: '' };
+  logsList: LogEntry[] = [];
   isLoading = false;
 
   // Master Data Lists from DB
@@ -68,7 +67,6 @@ export class OperationComponent implements OnInit {
   totalCount = 0;
   pendingCount = 0;
   confirmedCount = 0;
-  totalRevenue = 0;
 
   // Filters & Search
   searchTerm = '';
@@ -84,8 +82,11 @@ export class OperationComponent implements OnInit {
   sortBy = 'bookingId';
   sortDir: 'asc' | 'desc' = 'desc';
 
+  // Hardware Drones & Database Rates Selection
   availableDrones: Drone[] = [];
   selectedDroneId: string = '';
+  availableRates: Rate[] = [];
+  selectedPrice: number = 250;
 
   // Calendar State
   currentCalendarDate: Date = new Date();
@@ -106,7 +107,6 @@ export class OperationComponent implements OnInit {
   isEditModalOpen = false;
   editForm!: FormGroup;
   editingBooking: Booking | null = null;
-  computedAmount = 0;
   isDateLimitExceeded = false;
   capacityErrorMessage = '';
 
@@ -121,12 +121,13 @@ export class OperationComponent implements OnInit {
   private toastTimer: any;
 
   ngOnInit(): void {
-    this.loadCapacity();
     this.todayDate = new Date().toISOString().split('T')[0];
     this.initEditForm();
+    this.loadCapacity();
     this.loadDrones();
+    this.loadRates();
     this.loadMasterData();
-    this.rateApi.getCurrentRate().subscribe(r => { if (r?.price) this.currentRate = r; });
+    this.loadLogs();
     this.loadCalendarDataset();
     this.loadData();
   }
@@ -136,8 +137,7 @@ export class OperationComponent implements OnInit {
       next: (cap) => {
         if (cap?.maxAcres) {
           this.maxDailyAcres = cap.maxAcres;
-          // Re-evaluate calendar or form capacity checks
-          if (this.buildCalendarMonth) this.buildCalendarMonth();
+          this.buildCalendarMonth();
         }
       },
       error: () => this.showToast('Could not fetch capacity limit. Using default 30.', 'error') 
@@ -156,15 +156,54 @@ export class OperationComponent implements OnInit {
     });
   }
 
+  loadDrones(): void {
+    this.droneApi.getDrones().subscribe({
+      next: (drones) => {
+        this.availableDrones = (drones || []).filter(d => d.droneStatus === 'ACTIVE');
+        if (this.availableDrones.length > 0) {
+          this.selectedDroneId = this.availableDrones[0].droneId;
+        }
+      },
+      error: (err) => this.showToast(`Failed to load drones: ${err}`, 'error')
+    });
+  }
+
+  loadRates(): void {
+    this.rateApi.getRates().subscribe({
+      next: (rates) => {
+        this.availableRates = rates || [];
+        if (this.availableRates.length > 0) {
+          this.selectedPrice = Number(this.availableRates[0].price);
+        }
+      },
+      error: () => this.showToast('Failed to load rates from database.', 'error')
+    });
+  }
+
+  loadLogs(): void {
+    this.logApi.getLogs().subscribe({
+      next: (logs) => {
+        this.logsList = logs || [];
+      },
+      error: () => console.warn('Could not fetch logs registry')
+    });
+  }
+
+  getLogForBooking(bookingId?: number): LogEntry | undefined {
+    if (!bookingId) return undefined;
+    return this.logsList.find(l => l.bookingId === bookingId);
+  }
+
   private initEditForm(): void {
     this.editForm = this.fb.group({
       bookingDate: ['', Validators.required],
+      bookingTime: ['09:00', Validators.required],
       bookingDay: [''],
       cropName: ['', Validators.required],
       cropOwnerName: ['', [Validators.required, Validators.minLength(3)]],
       cropOwnerPhone: ['', [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]],
       cropVillage: ['', Validators.required],
-      cropSize: [null, [Validators.required, Validators.min(1), Validators.max(30), Validators.pattern('^[1-9][0-9]*$')]],
+      cropSize: [null, [Validators.required, Validators.min(1), Validators.max(100), Validators.pattern('^[0-9]+(\\.[0-9]{1,2})?$')]],
       bookingStatus: ['PENDING', Validators.required],
       bookingNotes: ['']
     });
@@ -178,7 +217,6 @@ export class OperationComponent implements OnInit {
     });
 
     this.editForm.get('cropSize')?.valueChanges.subscribe(() => {
-      this.recalcEditAmount();
       this.checkEditDateCapacity();
     });
   }
@@ -211,18 +249,6 @@ export class OperationComponent implements OnInit {
     }
   }
 
-  loadDrones(): void {
-    this.droneApi.getDrones().subscribe({
-      next: (drones) => {
-        this.availableDrones = (drones || []).filter(d => d.droneStatus === 'ACTIVE');
-        if (this.availableDrones.length > 0) {
-          this.selectedDroneId = this.availableDrones[0].droneId;
-        }
-      },
-      error: (err) => this.showToast(`Failed to load drones : ${err}`, 'error')
-    });
-  }
-
   loadData(page: number = this.currentPage): void {
     this.isLoading = true;
     this.currentPage = page;
@@ -250,11 +276,36 @@ export class OperationComponent implements OnInit {
     });
   }
 
-  loadCalendarDataset(): void {
+  /**
+   * Refreshes the calendar dataset and updates any open dialogs immediately
+   */
+  loadCalendarDataset(onComplete?: (bookings: Booking[]) => void): void {
     this.bookingApi.getBookings(0, 1000, 'bookingDate', 'asc').subscribe({
       next: (res: PageResponse<Booking>) => {
         this.allBookingsForCalendar = res.content || [];
         this.buildCalendarMonth();
+
+        // Immediate In-Place Refresh for Day Missions Dialog
+        if (this.selectedCalendarDay) {
+          const updatedDayBookings = this.allBookingsForCalendar.filter(
+            b => b.bookingDate === this.selectedCalendarDay!.dateStr && b.bookingStatus !== 'CANCELLED'
+          );
+          this.selectedCalendarDay.bookings = updatedDayBookings;
+          this.selectedCalendarDay.totalAcres = updatedDayBookings.reduce((sum, b) => sum + (Number(b.cropSize) || 0), 0);
+          this.selectedCalendarDay.isFull = this.selectedCalendarDay.totalAcres >= this.maxDailyAcres;
+        }
+
+        // Immediate In-Place Refresh for Details Dialog
+        if (this.selectedBookingDetails) {
+          const freshDetails = this.allBookingsForCalendar.find(b => b.bookingId === this.selectedBookingDetails!.bookingId);
+          if (freshDetails) {
+            this.selectedBookingDetails = freshDetails;
+          }
+        }
+
+        if (onComplete) {
+          onComplete(this.allBookingsForCalendar);
+        }
       },
       error: () => this.showToast('Could not load calendar entries', 'error')
     });
@@ -345,9 +396,7 @@ export class OperationComponent implements OnInit {
 
   // --- Tier 2: Mission Details & Actions Dialog (Child of Day Missions Dialog) ---
   openRowDetails(booking: Booking, event?: Event): void {
-    if (event) {
-      event.stopPropagation();
-    }
+    if (event) event.stopPropagation();
     this.selectedBookingDetails = booking;
     this.isDetailsModalOpen = true; // Opens Tier 2 on top of Tier 1 cleanly
   }
@@ -366,8 +415,7 @@ export class OperationComponent implements OnInit {
 
   confirmFromDetails(): void {
     if (!this.selectedBookingDetails) return;
-    const b = this.selectedBookingDetails;
-    this.openActionDialog('CONFIRM', b);
+    this.openActionDialog('CONFIRM', this.selectedBookingDetails);
   }
 
   // --- Edit Modal Handlers ---
@@ -376,6 +424,7 @@ export class OperationComponent implements OnInit {
     this.editingBooking = booking;
     this.editForm.patchValue({
       bookingDate: booking.bookingDate,
+      bookingTime: booking.bookingTime || '09:00',
       bookingDay: booking.bookingDay,
       cropName: booking.cropName,
       cropOwnerName: booking.cropOwnerName,
@@ -385,7 +434,6 @@ export class OperationComponent implements OnInit {
       bookingStatus: booking.bookingStatus,
       bookingNotes: booking.bookingNotes || ''
     });
-    this.recalcEditAmount();
     this.checkEditDateCapacity();
     this.isEditModalOpen = true;
   }
@@ -395,11 +443,6 @@ export class OperationComponent implements OnInit {
     this.editingBooking = null;
     this.isDateLimitExceeded = false;
     this.capacityErrorMessage = '';
-  }
-
-  recalcEditAmount(): void {
-    const size = parseInt(this.editForm.get('cropSize')?.value, 10) || 0;
-    this.computedAmount = size * (this.currentRate.price || 250);
   }
 
   submitEditForm(): void {
@@ -415,6 +458,7 @@ export class OperationComponent implements OnInit {
     const payload: Booking = {
       bookingId: this.editingBooking.bookingId,
       bookingDate: f.bookingDate,
+      bookingTime: f.bookingTime,
       bookingDay: f.bookingDay,
       cropName: f.cropName,
       cropOwnerName: f.cropOwnerName,
@@ -422,17 +466,17 @@ export class OperationComponent implements OnInit {
       cropVillage: f.cropVillage,
       cropSize: parseInt(f.cropSize, 10),
       bookingStatus: f.bookingStatus,
-      bookingNotes: f.bookingNotes,
-      price: this.currentRate.price,
-      amount: this.computedAmount
+      bookingNotes: f.bookingNotes
     };
 
     this.bookingApi.updateBooking(this.editingBooking.bookingId, payload).subscribe({
       next: () => {
         this.closeEditModal();
-        this.closeRowDetails();
         this.loadData(this.currentPage);
+        
+        // In-place refresh of Day Missions Dialog immediately without closing it
         this.loadCalendarDataset();
+        this.loadLogs();
         this.showToast(`Booking #${payload.bookingId} updated successfully!`, 'success');
       },
       error: () => this.showToast('Failed to update booking.', 'error')
@@ -446,6 +490,9 @@ export class OperationComponent implements OnInit {
     this.targetBooking = booking;
     if (this.availableDrones.length > 0 && !this.selectedDroneId) {
       this.selectedDroneId = this.availableDrones[0].droneId;
+    }
+    if (this.availableRates.length > 0 && !this.selectedPrice) {
+      this.selectedPrice = Number(this.availableRates[0].price);
     }
     this.isConfirmActionDialogOpen = true;
   }
@@ -469,23 +516,37 @@ export class OperationComponent implements OnInit {
         return;
       }
 
+      if (!this.selectedPrice) {
+        this.showToast('Please select a tariff rate for this mission.', 'error');
+        this.isActionAnimating = false;
+        return;
+      }
+
       const assignedDrone = this.availableDrones.find(d => d.droneId === this.selectedDroneId);
-      const droneName = assignedDrone ? assignedDrone.droneName : 'Standard Agri Drone';
+      const droneName = assignedDrone ? assignedDrone.droneName : 'Drone Unit';
+
+      const now = new Date();
+      const currentConfirmedDate = now.toISOString().split('T')[0];
+      const currentConfirmedTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+      const calculatedTotal = Number((this.targetBooking.cropSize * this.selectedPrice).toFixed(2));
 
       const newLogEntry: LogEntry = {
         bookingId: this.targetBooking.bookingId!,
         droneId: this.selectedDroneId,
         createDate: this.targetBooking.bookingDate,
-        createTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        createTime: this.targetBooking.bookingTime || '09:00:00',
         cropName: this.targetBooking.cropName,
         cropOwnerName: this.targetBooking.cropOwnerName,
         cropOwnerPhone: this.targetBooking.cropOwnerPhone,
         cropSize: this.targetBooking.cropSize,
         cropVillage: this.targetBooking.cropVillage,
-        tankUsage: this.targetBooking.cropSize, // 1 acre = 1 tank
-        amount: this.targetBooking.amount,
-        activityStatus: 'CONFIRMED' as 'CONFIRMED' | 'COMPLETED' | 'CANCELLED',
-        paymentStatus: 'PENDING' as PaymentStatus       
+        tankUsage: this.targetBooking.cropSize,
+        price: Number(this.selectedPrice),
+        amount: calculatedTotal,
+        confirmedDate: currentConfirmedDate,
+        confirmedTime: currentConfirmedTime,
+        activityStatus: 'CONFIRMED',
+        paymentStatus: 'PENDING'
       };
 
       const updatedBooking: Booking = {
@@ -500,10 +561,11 @@ export class OperationComponent implements OnInit {
               setTimeout(() => {
                 this.closeActionDialog();
                 this.closeRowDetails();
-                this.closeDayMissionsDialog();
                 this.loadData(this.currentPage);
+                this.loadLogs();
+                // Immediately refresh open calendar dialog
                 this.loadCalendarDataset();
-                this.showToast(`✅ Booking #${id} confirmed and logged with Drone ${droneName} (${this.selectedDroneId})!`, 'success');
+                this.showToast(`✅ Booking #${id} confirmed on ${currentConfirmedDate} at ${currentConfirmedTime} with Drone ${droneName} (₹${this.selectedPrice}/tank)!`, 'success');
               }, 300);
             },
             error: () => {
@@ -525,9 +587,9 @@ export class OperationComponent implements OnInit {
           setTimeout(() => {
             this.closeActionDialog();
             this.closeRowDetails();
-            this.closeDayMissionsDialog();
             this.loadData(this.currentPage);
             this.loadCalendarDataset();
+            this.loadLogs();
             this.showToast(`Booking #${id} has been CANCELLED.`, 'success');
           }, 300);
         },
@@ -551,48 +613,52 @@ export class OperationComponent implements OnInit {
     let cleanPhone = booking.cropOwnerPhone.replace(/[^0-9]/g, '');
     if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
 
+    const log = this.getLogForBooking(booking.bookingId);
     let statusHeader = '';
     let statusNotice = '';
 
     if (booking.bookingStatus === 'CONFIRMED') {
-      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Dispatch Confirmed* 🛸';
-      statusNotice = 'Our certified drone pilot and autonomous unit are assigned to your field. Please ensure water supply is accessible near the plot.';
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Dispatch Confirmed* ';
+      statusNotice = 'Our certified drone pilot and autonomous unit are confirmed for your mission. Please ensure water supply is accessible near the plot.';
     } else if (booking.bookingStatus === 'CANCELLED') {
-      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Service Cancelled* 🛑';
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Service Cancelled* ';
       statusNotice = 'This scheduled spraying mission has been cancelled. For re-scheduling or inquiries, please contact our support desk.';
     } else {
-      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Booking Received* ⏳';
+      statusHeader = '*Sri Jagadeeswara AGRI Drone Spraying - Booking Received* ';
       statusNotice = 'Your request has been received and is pending pilot dispatch verification.';
     }
 
-    let formattedDate = booking.bookingDate;
-    if (booking.bookingDate && booking.bookingDate.includes('-')) {
-      const parts = booking.bookingDate.split('-');
-      if (parts.length === 3 && parts[0].length === 4) {
-        formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-      }
-    }
-
-    const messageLines = [
+    const messageLines: string[] = [
       statusHeader,
       '━━━━━━━━━━━━━━━━━━━━',
       `Dear *${booking.cropOwnerName}*, details of your drone mission:`,
       '',
-      `📅 *Date:* ${formattedDate} (${booking.bookingDay})`,
-      `🌱 *Crop:* ${booking.cropName}`,
-      `📐 *Field Area:* ${booking.cropSize} Acres (${booking.cropSize} Tanks)`,
-      `📍 *Village / Location:* ${booking.cropVillage}`,
-      `💰 *Rate per Tank:* ₹${booking.price}`,
-      `💵 *Estimated Total:* ₹${booking.amount}`,
-      `📊 *Status:* *${booking.bookingStatus}*`,
-      booking.bookingNotes ? `📝 *Notes:* ${booking.bookingNotes}\n` : '',
-      '━━━━━━━━━━━━━━━━━━━━',
-      statusNotice,
-      '',
-      '*For any queries, contact us at:* +91 9642343838, +91 9032343838',
-      '',
-      '_*Sri Jagadeeswara AGRI Drone Spraying!*_'
-    ].filter(line => line !== null && line !== undefined);
+      `*Scheduled Date:* ${booking.bookingDate} (${booking.bookingDay})`,
+      `*Time Slot:* ${booking.bookingTime || '09:00 AM'}`,
+      `*Crop:* ${booking.cropName}`,
+      `*Field Area:* ${booking.cropSize} Acres (${booking.cropSize} Tanks)`,
+      `*Village / Location:* ${booking.cropVillage}`
+    ];
+
+    // ONLY SHOW PRICE AND ESTIMATED AMOUNT FOR CONFIRMED BOOKINGS
+    if (booking.bookingStatus === 'CONFIRMED' && log) {
+      messageLines.push(`*Rate per Tank:* ₹${log.price}`);
+      messageLines.push(`*Estimated Total:* ₹${log.amount}`);
+      if (log.confirmedDate) {
+        messageLines.push(`*Confirmed on:* ${log.confirmedDate} at ${log.confirmedTime || ''}`);
+      }
+    }
+
+    messageLines.push(`*Status:* *${booking.bookingStatus}*`);
+    if (booking.bookingNotes) {
+      messageLines.push(`*Notes:* ${booking.bookingNotes}`);
+    }
+
+    messageLines.push('━━━━━━━━━━━━━━━━━━━━');
+    messageLines.push(statusNotice);
+    messageLines.push('');
+    messageLines.push('*Contact Desk:* +91 9642343838, +91 9032343838');
+    messageLines.push('_*Sri Jagadeeswara AGRI Drone Spraying*_');
 
     const encodedMessage = encodeURIComponent(messageLines.join('\n'));
     const whatsappUrl = `https://wa.me/send?phone=${cleanPhone}&text=${encodedMessage}`;
@@ -605,7 +671,6 @@ export class OperationComponent implements OnInit {
     this.totalCount = total;
     this.pendingCount = pageItems.filter(b => b.bookingStatus === 'PENDING').length;
     this.confirmedCount = pageItems.filter(b => b.bookingStatus === 'CONFIRMED').length;
-    this.totalRevenue = pageItems.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   }
 
   toggleSort(column: string): void {
@@ -627,4 +692,5 @@ export class OperationComponent implements OnInit {
   getPageNumbers(): number[] {
     return Array.from({ length: this.totalPages }, (_, i) => i);
   }
+  
 }

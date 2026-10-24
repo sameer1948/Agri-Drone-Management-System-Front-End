@@ -11,9 +11,12 @@ export interface LogEntry {
   cropSize: number;
   cropVillage: string;
   tankUsage: number;
+  price: number;
   amount: number;
-  completeDate?: string;     // YYYY-MM-DD
-  completeTime?: string;     // HH:mm:ss
+  confirmedDate?: string;     // YYYY-MM-DD
+  confirmedTime?: string;     // HH:mm:ss
+  completeDate?: string;      // YYYY-MM-DD
+  completeTime?: string;      // HH:mm:ss
   activityStatus: ActivityStatus; 
   paymentStatus: PaymentStatus;
 
