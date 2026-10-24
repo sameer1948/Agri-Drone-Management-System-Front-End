@@ -70,4 +70,16 @@ getFilteredBookings(
     return this.http.delete<void>(`${this.baseUrl}/bookings/${bookingId}`);
   }
 
+  // Update actual sprayed area on completion
+  updateActualSprayedArea(bookingId: number, cropSize: number, note?: string): Observable<Booking> {
+    const params: any = { cropSize: cropSize.toString() };
+    if (note) params.note = note;
+    return this.http.patch<Booking>(`${this.baseUrl}/bookings/${bookingId}/actual-area`, null, { params });
+  }  
+
+  // Get single booking by ID
+  getBookingById(id: number): Observable<Booking> {
+    return this.http.get<Booking>(`${this.baseUrl}/bookings/${id}`);
+  }
+
 }

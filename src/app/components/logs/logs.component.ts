@@ -5,6 +5,8 @@ import { LogEntry } from '../../models/log.model';
 import { Payment, PaymentStatus } from '../../models/payment.model';
 import { LogService } from '../../services/log.service';
 import { PaymentService } from '../../services/payment.service';
+import { BookingService } from '../../services/booking.service';
+
 type DialogMode = 'CONFIRM_MISSION' | 'RECEIVE_PAYMENT' | 'VIEW_DETAILS' | null;
 
 @Component({
@@ -18,6 +20,7 @@ export class LogsComponent implements OnInit {
 
   private logApi = inject(LogService);
   private paymentApi = inject(PaymentService);
+  private bookingApi = inject(BookingService);
 
   allLogs: LogEntry[] = [];
   filteredLogs: LogEntry[] = [];
@@ -31,10 +34,12 @@ export class LogsComponent implements OnInit {
   searchTerm = '';
   selectedStatusFilter: 'ALL' | 'PAID' | 'PENDING' = 'ALL';
 
-  // KPI Metrics
+  // KPI Metrics & Privacy Visibility States
   totalLogs = 0;
   pendingAmount = 0;
   collectedAmount = 0;
+  isPendingVisible = false;
+  isCollectedVisible = false;
 
   // Sorting
   sortBy: keyof LogEntry = 'logId';
@@ -51,6 +56,10 @@ export class LogsComponent implements OnInit {
   activeDialogMode: DialogMode = null;
   selectedLog: LogEntry | null = null;
   selectedPayment: Payment | null = null;
+
+  // Actual Sprayed Acres Adjustment Fields (1 Acre = 1 Tank)
+  actualSprayedAcres: number = 0;
+  recomputedAmount: number = 0;
 
   // Payment Form Fields
   paymentMode: 'CASH' | 'TRANSFER' = 'CASH';
@@ -160,6 +169,15 @@ export class LogsComponent implements OnInit {
     }, 0);
   }
 
+  // --- Toggle Eye Visibility ---
+  togglePendingVisibility(): void {
+    this.isPendingVisible = !this.isPendingVisible;
+  }
+
+  toggleCollectedVisibility(): void {
+    this.isCollectedVisible = !this.isCollectedVisible;
+  }
+
   // --- Filtering & Sorting ---
   applyFiltersAndSort(): void {
     let result = [...this.allLogs];
@@ -248,8 +266,23 @@ export class LogsComponent implements OnInit {
   openConfirmDialog(log: LogEntry, event?: Event): void {
     if (event) event.stopPropagation();
     this.selectedLog = log;
+    // Default actual sprayed acres to current booked crop size
+    this.actualSprayedAcres = Number(log.cropSize);
+    this.recomputeConfirmCost();
     this.activeDialogMode = 'CONFIRM_MISSION';
     this.isDialogOpen = true;
+  }
+
+  onActualAcresChange(): void {
+    this.recomputeConfirmCost();
+  }
+
+  private recomputeConfirmCost(): void {
+    if (!this.selectedLog) return;
+    const price = Number(this.selectedLog.price) || 250;
+    const acres = Number(this.actualSprayedAcres) || 0;
+    // 1 Acre = 1 Tank calculation
+    this.recomputedAmount = Number((acres * price).toFixed(2));
   }
 
   openPaymentDialog(log: LogEntry, event?: Event): void {
@@ -317,7 +350,7 @@ export class LogsComponent implements OnInit {
       if (isNaN(entered) || entered <= 0) {
         this.amountError = 'Amount must be greater than ₹0.';
       } else if (entered > maxPending) {
-        this.amountError = `Amount cannot exceed current pending balance of ₹${maxPending}.`;
+        this.amountError = `Amount cannot exceed balance of ₹${maxPending}.`;
       } else {
         this.amountError = '';
       }
@@ -332,54 +365,68 @@ export class LogsComponent implements OnInit {
     return false;
   }
 
-  // --- Execute Confirm ---
+  // --- Execute Confirm with Actual Sprayed Acreage (1 Acre = 1 Tank) ---
   executeConfirmAction(): void {
-    if (!this.selectedLog) return;
+    if (!this.selectedLog || !this.selectedLog.logId) return;
+
     const logRef = this.selectedLog.logId;
+    const bookingRef = this.selectedLog.bookingId;
+    const originalBookedAcres = Number(this.selectedLog.cropSize);
+    const finalAcres = Number(this.actualSprayedAcres) > 0 ? Number(this.actualSprayedAcres) : originalBookedAcres;
+    const finalAmount = this.recomputedAmount > 0 ? this.recomputedAmount : this.selectedLog.amount;
 
+    const now = new Date();
+    const compDate = now.toISOString().split('T')[0];
+    const compTime = now.toTimeString().split(' ')[0];
+
+    // 1. Updated Log Entry (1 Acre = 1 Tank)
     const updatedLogEntry: LogEntry = {
-      bookingId: this.selectedLog.bookingId!,
-      droneId: this.selectedLog.droneId!,
-      createDate: this.selectedLog.createDate,
-      createTime: this.selectedLog.createTime,
-      cropName: this.selectedLog.cropName,
-      cropOwnerName: this.selectedLog.cropOwnerName,
-      cropOwnerPhone: this.selectedLog.cropOwnerPhone,
-      cropSize: this.selectedLog.cropSize,
-      cropVillage: this.selectedLog.cropVillage,
-      tankUsage: Math.round(this.selectedLog.cropSize * 2.0),
-      amount: this.selectedLog.amount,
-      completeDate: new Date().toISOString().split('T')[0],
-      completeTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      activityStatus: 'COMPLETED' as 'CONFIRMED' | 'COMPLETED' | 'CANCELLED',
-      paymentStatus: 'PENDING' as PaymentStatus
+      ...this.selectedLog,
+      cropSize: finalAcres,
+      tankUsage: finalAcres, // Strictly 1:1
+      amount: finalAmount,
+      completeDate: compDate,
+      completeTime: compTime,
+      activityStatus: 'COMPLETED',
+      paymentStatus: 'PENDING'
     };
 
+    // 2. Initialize Payment Entry
     const paymentEntry: Payment = {
-      logId: this.selectedLog.logId ?? 0,
+      logId: logRef,
       paymentStatus: 'PENDING',
-      totalAmount: Number(this.selectedLog.amount),
+      totalAmount: Number(finalAmount),
       paidAmount: 0.00,
-      pendingAmount: Number(this.selectedLog.amount)
+      pendingAmount: Number(finalAmount)
     };
 
-    this.logApi.updateLog(logRef!, updatedLogEntry).subscribe({
-      next: (u) => {
-        this.showToast(`✅ Log Id #${logRef} confirmed and Spraying Completed!`, 'success');
+    const completionNote = originalBookedAcres !== finalAcres 
+      ? `Sprayed area revised from ${originalBookedAcres} ac to ${finalAcres} ac on completion.`
+      : '';
+
+    // Step A: Update the Mission Log
+    this.logApi.updateLog(logRef, updatedLogEntry).subscribe({
+      next: () => {
+        // Step B: Synchronize the original Booking record with actual sprayed acres
+        if (bookingRef) {
+          this.bookingApi.updateActualSprayedArea(bookingRef, finalAcres, completionNote).subscribe({
+            next: () => console.log(`Booking #${bookingRef} synchronized to ${finalAcres} Acres.`),
+            error: (err) => console.warn(`Could not sync booking #${bookingRef}:`, err)
+          });
+        }
+
+        // Step C: Initialize Payment Ledger Entry
         this.paymentApi.createPayment(paymentEntry).subscribe({
           next: (p) => {
             if (p?.logId) this.paymentsMap.set(p.logId, p);
             this.fetchLogs();
-            this.showToast(`💰 Payment record initialized for Log #${logRef}.`, 'success');
+            this.showToast(`✅ Mission #${logRef} & Booking #${bookingRef} finalized: ${finalAcres} Acres sprayed (₹${finalAmount})!`, 'success');
           },
-          error: (err) => {
-            console.error('Failed to create payment record:', err);
-            this.fetchLogs();
-          }
+          error: () => this.fetchLogs()
         });
       },
       error: () => {
-        this.showToast('Failed to update Confirmation.', 'error');
+        this.showToast('Failed to finalize mission confirmation.', 'error');
       }
     });
 
@@ -413,7 +460,7 @@ export class LogsComponent implements OnInit {
         const nowStr = new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
         const userRemarks = this.paymentReferenceNote.trim() ? ` [Remarks: ${this.paymentReferenceNote.trim()}]` : '';
 
-        const newNoteEntry = `  Payment of ₹${incomingAmt} recorded via ${modeLabel} on ${nowStr}${userRemarks};  `;
+        const newNoteEntry = `Payment of ₹${incomingAmt} recorded via ${modeLabel} on ${nowStr}${userRemarks}; `;
         const updatedPaymentNotes = paymentRecord.paymentNotes 
           ? `${paymentRecord.paymentNotes.trim()} ${newNoteEntry}`
           : newNoteEntry;
@@ -423,10 +470,8 @@ export class LogsComponent implements OnInit {
           paidAmount: newPaid,
           pendingAmount: newPending,
           paymentStatus: newStatus,
-          paymentDate: paymentRecord.paymentDate == null ? 
-                       new Date().toISOString().split('T')[0] : paymentRecord.paymentDate, 
-          paymentTime: paymentRecord.paymentDate == null ? 
-                       new Date().toLocaleTimeString('en-US', { hour12: false }): paymentRecord.paymentTime,
+          paymentDate: paymentRecord.paymentDate == null ? new Date().toISOString().split('T')[0] : paymentRecord.paymentDate, 
+          paymentTime: paymentRecord.paymentDate == null ? new Date().toLocaleTimeString('en-US', { hour12: false }): paymentRecord.paymentTime,
           lastPaymentDate: new Date().toISOString().split('T')[0],
           lastPaymentTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
           paymentType: this.paymentMode,
@@ -449,18 +494,15 @@ export class LogsComponent implements OnInit {
           },
           error: (err) => {
             console.error('Failed to update payment record:', err);
-            this.showToast('Failed to update the payment record.', 'error');
+            this.showToast('Failed to update payment record.', 'error');
           }
         });
       },
-      error: (err) => {
-        console.error('Failed to fetch payment record:', err);
-        this.showToast('Failed to fetch payment record.', 'error');
-      }
+      error: () => this.showToast('Failed to fetch payment record.', 'error')
     });
   }
 
-  // WhatsApp Reminder
+  // --- Dynamic WhatsApp Notification ---
   sendPaymentReminder(log: LogEntry, event?: Event): void {
     if (event) event.stopPropagation();
 
@@ -473,30 +515,36 @@ export class LogsComponent implements OnInit {
     if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
 
     const pending = this.getPendingAmountForLog(log);
+    const paid = this.getPaidAmountForLog(log);
 
-    const message = 
-    `*Sri Jagadeeswara AGRI Drone Spraying - Payment Received*
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    Dear *${log.cropOwnerName}*,
+    const messageLines = [
+      '*Sri Jagadeeswara AGRI Drone Spraying - Mission Ledger Summary* ',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      `Dear *${log.cropOwnerName}*, here is your verified drone spraying summary:`,
+      '',
+      `*Mission Ref:* #${log.logId} (Booking #${log.bookingId})`,
+      `*Drone Hardware:* ${log.droneId}`,
+      `*Scheduled Slot:* ${log.createDate} at ${log.createTime}`,
+      log.confirmedDate ? `*Confirmed Date:* ${log.confirmedDate} (${log.confirmedTime})` : '',
+      log.completeDate ? `*Completed Date:* ${log.completeDate} (${log.completeTime})` : '',
+      `*Crop & Plot:* ${log.cropName} (${log.cropVillage})`,
+      `*Actual Sprayed Area:* ${log.cropSize} Acres (${log.tankUsage} Tanks @ 1 Acre = 1 Tank)`,
+      `*Tariff Rate:* ₹${log.price}/tank`,
+      `*Total Billing:* ₹${log.amount}`,
+      `*Amount Paid:* ₹${paid}`,
+      `*Pending Balance Due:* *₹${pending}*`,
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      pending > 0 
+        ? 'Please settle the pending balance via Cash or UPI at your earliest convenience.' 
+        : 'Thank you! Your payment is fully settled.',
+      '',
+      '*Official Pilot Contact:* +91 9642343838, +91 9032343838',
+      '_*Sri Jagadeeswara AGRI Drone Spraying*_'
+    ].filter(line => line !== null && line !== undefined && line.trim() !== '');
 
-    Your drone spraying service summary:
-    *Log Ref:* #${log.logId}
-    *Date of Confirmation:* ${log.createDate} at ${log.createTime}
-    *Crop:* ${log.cropName} (${log.cropSize} Acres)
-    *Tanks Consumed:* ${log.tankUsage} Tanks
-    *Village Plot:* ${log.cropVillage}
-    *Total Amount:* ₹${log.amount}
-    *Pending Balance Due:* *₹${pending}*
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-
-    *For any queries, contact us at: +91 - 9642343838, +91 - 9032343838*
-
-    Thank you for choosing _*Sri Jagadeeswara AGRI Drone Spraying!*_`;
-
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageLines.join('\n'))}`;
     window.open(url, '_blank', 'noopener,noreferrer');
-    this.showToast(`WhatsApp reminder opened for ${log.cropOwnerName}`, 'success');
+    this.showToast(`WhatsApp summary opened for ${log.cropOwnerName}`, 'success');
   }
 
   showToast(message: string, type: 'success' | 'error' = 'success'): void {

@@ -9,7 +9,10 @@
   <!-- Header -->
   <header class="logs-header">
     <div class="title-wrap">
-      <h1>Spraying Flight Mission Logs</h1>
+      <h1>
+        <span class="material-icons title-icon">receipt_long</span>
+        Spraying Flight Mission Logs
+      </h1>
       <p>Operational records of drone field sprayings, tank consumptions, and payment settlements</p>
     </div>
     <button class="btn-refresh" (click)="fetchLogs()" [disabled]="isLoading">
@@ -18,7 +21,7 @@
     </button>
   </header>
 
-  <!-- KPI Metrics Banner -->
+  <!-- KPI Metrics Banner with Eye Privacy Toggle -->
   <section class="kpi-banner">
     <div class="kpi-card total-missions">
       <div class="kpi-icon-wrap">
@@ -30,23 +33,47 @@
       </div>
     </div>
 
+    <!-- Pending Payments with Hide/Show Toggle -->
     <div class="kpi-card pending">
       <div class="kpi-icon-wrap">
         <span class="material-icons">pending_actions</span>
       </div>
       <div class="kpi-text">
-        <span class="label">Pending Payments</span>
-        <strong class="val">₹{{ pendingAmount | number }}</strong>
+        <div class="kpi-label-row">
+          <span class="label">Pending Payments</span>
+          <button 
+            type="button" 
+            class="btn-toggle-eye" 
+            (click)="togglePendingVisibility()" 
+            [title]="isPendingVisible ? 'Hide Pending Payments' : 'Show Pending Payments'">
+            <span class="material-icons">{{ isPendingVisible ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+        <strong class="val">
+          {{ isPendingVisible ? ('₹' + (pendingAmount | number:'1.2-2')) : '••••••••' }}
+        </strong>
       </div>
     </div>
 
+    <!-- Collected Payments with Hide/Show Toggle -->
     <div class="kpi-card collected">
       <div class="kpi-icon-wrap">
         <span class="material-icons">account_balance_wallet</span>
       </div>
       <div class="kpi-text">
-        <span class="label">Collected Payments</span>
-        <strong class="val">₹{{ collectedAmount | number }}</strong>
+        <div class="kpi-label-row">
+          <span class="label">Collected Payments</span>
+          <button 
+            type="button" 
+            class="btn-toggle-eye" 
+            (click)="toggleCollectedVisibility()" 
+            [title]="isCollectedVisible ? 'Hide Collected Payments' : 'Show Collected Payments'">
+            <span class="material-icons">{{ isCollectedVisible ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+        <strong class="val">
+          {{ isCollectedVisible ? ('₹' + (collectedAmount | number:'1.2-2')) : '••••••••' }}
+        </strong>
       </div>
     </div>
   </section>
@@ -63,7 +90,7 @@
     </div>
 
     <div class="status-filters">
-      <label>Status:</label>
+      <label><span class="material-icons icon-sm">filter_alt</span> Status:</label>
       <div class="pill-group">
         <button 
           [class.active]="selectedStatusFilter === 'ALL'" 
@@ -96,34 +123,31 @@
         <thead>
           <tr>
             <th (click)="setSort('createDate')" class="sortable">
-              Confirmed Date & Time <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Schedule &amp; Lifecycle <span class="sort-indicator">{{ sortBy === 'createDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('cropOwnerName')" class="sortable">
               Farmer / Phone <span class="sort-indicator">{{ sortBy === 'cropOwnerName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('cropName')" class="sortable">
-              Crop & Village <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Crop &amp; Village <span class="sort-indicator">{{ sortBy === 'cropName' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('cropSize')" class="sortable">
-              Area <span class="sort-indicator">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Actual Area <span class="sort-indicator">{{ sortBy === 'cropSize' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('tankUsage')" class="sortable">
-              Tanks <span class="sort-indicator">{{ sortBy === 'tankUsage' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
+              Tanks (1:1) <span class="sort-indicator">{{ sortBy === 'tankUsage' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('amount')" class="sortable">
               Total <span class="sort-indicator">{{ sortBy === 'amount' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th>Pending</th>
-            <th (click)="setSort('completeDate')" class="sortable">
-              Complete Date <span class="sort-indicator">{{ sortBy === 'completeDate' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
-            </th>
             <th (click)="setSort('activityStatus')" class="sortable">
               Activity Status <span class="sort-indicator">{{ sortBy === 'activityStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
             <th (click)="setSort('paymentStatus')" class="sortable">
               Payment Status <span class="sort-indicator">{{ sortBy === 'paymentStatus' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
             </th>
-            <th class="action-header">Action</th>
+            <th class="action-header">Actions</th>
           </tr>
         </thead>
 
@@ -136,12 +160,26 @@
             (click)="openRowDetails(log)"
             title="Click to view complete details">
 
+            <!-- Schedule, Confirmed & Completed Lifecycle Cell -->
             <td>
-              <div class="cell-stack">
-                <span class="cell-main">{{ log.createDate | date:'dd-MM-yyyy' }}</span>
-                <span class="cell-sub">{{ log.createTime }}</span>
+              <div class="lifecycle-stack">
+                <div class="line-sched">
+                  <span class="material-icons icon-xs">calendar_today</span>
+                  <span>Sched: <strong>{{ log.createDate | date:'dd-MM-yyyy' }}</strong> at {{ log.createTime }}</span>
+                </div>
+
+                <div class="line-conf" *ngIf="log.confirmedDate">
+                  <span class="material-icons icon-xs text-blue">task_alt</span>
+                  <span>Conf: <strong>{{ log.confirmedDate | date:'dd-MM-yy' }}</strong> ({{ log.confirmedTime }})</span>
+                </div>
+
+                <div class="line-comp" *ngIf="log.completeDate">
+                  <span class="material-icons icon-xs text-green">done_all</span>
+                  <span>Comp: <strong>{{ log.completeDate | date:'dd-MM-yy' }}</strong> ({{ log.completeTime }})</span>
+                </div>
               </div>
             </td>
+
             <td>
               <div class="cell-stack">
                 <span class="cell-main">{{ log.cropOwnerName }}</span>
@@ -150,35 +188,31 @@
                 </a>
               </div>
             </td>
+
             <td>
               <div class="cell-stack">
                 <span class="crop-tag">🌱 {{ log.cropName }}</span>
                 <span class="cell-sub"><span class="material-icons cell-sub-icon">location_on</span> {{ log.cropVillage }}</span>
               </div>
             </td>
+
             <td><strong>{{ log.cropSize }}</strong> ac</td>
+
             <td>
               <span class="tank-pill">
-                <span class="material-icons cell-sub-icon">opacity</span> {{ log.tankUsage }}
+                <span class="material-icons cell-sub-icon">opacity</span> {{ log.tankUsage }} Tanks
               </span>
             </td>
-            <td class="amount-val">₹{{ log.amount }}</td>
+
+            <td class="amount-val">₹{{ log.amount | number:'1.2-2' }}</td>
 
             <td>
               <span *ngIf="getPendingAmountForLog(log) > 0" class="pending-pill">
-                ₹{{ getPendingAmountForLog(log) }}
+                ₹{{ getPendingAmountForLog(log) | number:'1.2-2' }}
               </span>
               <span *ngIf="getPendingAmountForLog(log) === 0" class="zero-pending">
                 ₹0.00
               </span>
-            </td>
-
-            <td>
-              <div class="cell-stack" *ngIf="log.completeDate">
-                <span class="cell-main">{{ log.completeDate | date:'dd-MM-yyyy' }}</span>
-                <span class="cell-sub">{{ log.completeTime }}</span>
-              </div>
-              <span *ngIf="!log.completeDate" class="cell-sub">—</span>
             </td>
 
             <td>
@@ -200,9 +234,9 @@
                   *ngIf="log.activityStatus === 'CONFIRMED'"
                   type="button" 
                   class="btn-action btn-confirm" 
-                  title="Confirm & verify Spraying details" 
+                  title="Verify, Adjust Actual Sprayed Acres & Complete Mission" 
                   (click)="openConfirmDialog(log, $event)">
-                  <span class="material-icons icon-glyph">check_circle</span>
+                  <span class="material-icons icon-glyph">task_alt</span>
                 </button>
 
                 <button 
@@ -214,7 +248,7 @@
                 </button>
 
                 <button 
-                *ngIf="log.activityStatus === 'COMPLETED'"
+                  *ngIf="log.activityStatus === 'COMPLETED'"
                   type="button" 
                   class="btn-action btn-pay" 
                   title="Open payment settlement dialog" 
@@ -233,7 +267,7 @@
           </tr>
 
           <tr *ngIf="pagedLogs.length === 0">
-            <td colspan="11" class="no-records">
+            <td colspan="10" class="no-records">
               No spraying logs found matching the filter criteria.
             </td>
           </tr>
@@ -273,7 +307,7 @@
 
   <!-- ================= UNIFIED MODAL DIALOG ================= -->
   <div class="modal-backdrop" *ngIf="isDialogOpen" (click)="closeDialog()">
-    <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-card animate-scale-in" (click)="$event.stopPropagation()">
       
       <!-- DIALOG HEADER -->
       <div class="modal-header" [ngClass]="{
@@ -287,11 +321,11 @@
           </span>
           <div>
             <h3>
-              {{ activeDialogMode === 'CONFIRM_MISSION' ? 'Verify & Confirm Mission' : 
+              {{ activeDialogMode === 'CONFIRM_MISSION' ? 'Verify & Complete Mission' : 
                  (activeDialogMode === 'RECEIVE_PAYMENT' ? 'Record Received Payment' : 'Flight & Payment Mission Details') }}
             </h3>
             <p>
-              {{ activeDialogMode === 'CONFIRM_MISSION' ? 'Review all spraying specifications' : 
+              {{ activeDialogMode === 'CONFIRM_MISSION' ? 'Verify actual sprayed acreage (1 Acre = 1 Tank) and finalize billing' : 
                  (activeDialogMode === 'RECEIVE_PAYMENT' ? 'Settle invoice with full or custom amount' : 'Complete overview of selected record') }}
             </p>
           </div>
@@ -304,65 +338,118 @@
         <div class="specs-grid">
           <div class="spec-item">
             <span class="spec-label"><span class="material-icons mini-icon">tag</span> Log Serial:</span>
-            <strong class="spec-value">#{{ selectedLog.logId }}</strong>
+            <strong class="spec-value">#{{ selectedLog.logId }} (Booking #{{ selectedLog.bookingId }})</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label"><span class="material-icons mini-icon">schedule</span> Flight Created:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">flight</span> Assigned Drone:</span>
+            <strong class="spec-value">{{ selectedLog.droneId }}</strong>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label"><span class="material-icons mini-icon">event</span> Scheduled Slot:</span>
             <strong class="spec-value">{{ selectedLog.createDate | date:'dd-MM-yyyy' }} at {{ selectedLog.createTime }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label"><span class="material-icons mini-icon">person</span> Farmer / Crop Owner:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">person</span> Farmer Name:</span>
             <strong class="spec-value">{{ selectedLog.cropOwnerName }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label"><span class="material-icons mini-icon">phone</span> Contact Phone:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">phone</span> Mobile Phone:</span>
             <strong class="spec-value">{{ selectedLog.cropOwnerPhone }}</strong>
-          </div>
-          <div class="spec-item">
-            <span class="spec-label"><span class="material-icons mini-icon">eco</span> Crop & Variety:</span>
-            <strong class="spec-value">{{ selectedLog.cropName }}</strong>
-          </div>
-          <div class="spec-item">
-            <span class="spec-label"><span class="material-icons mini-icon">straighten</span> Land Size:</span>
-            <strong class="spec-value">{{ selectedLog.cropSize }} Acres</strong>
           </div>
           <div class="spec-item">
             <span class="spec-label"><span class="material-icons mini-icon">location_on</span> Farm Village:</span>
             <strong class="spec-value">{{ selectedLog.cropVillage }}</strong>
           </div>
           <div class="spec-item">
-            <span class="spec-label"><span class="material-icons mini-icon">opacity</span> Tank Usage:</span>
-            <strong class="spec-value">{{ selectedLog.tankUsage }} Tanks</strong>
+            <span class="spec-label"><span class="material-icons mini-icon">eco</span> Crop Type:</span>
+            <strong class="spec-value">{{ selectedLog.cropName }}</strong>
+          </div>
+          <div class="spec-item" *ngIf="selectedLog.confirmedDate">
+            <span class="spec-label"><span class="material-icons mini-icon">task_alt</span> Confirmed On:</span>
+            <strong class="spec-value">{{ selectedLog.confirmedDate | date:'dd-MM-yyyy' }} {{ selectedLog.confirmedTime }}</strong>
           </div>
           <div class="spec-item" *ngIf="selectedLog.completeDate">
-            <span class="spec-label"><span class="material-icons mini-icon">done_all</span> Completed At:</span>
+            <span class="spec-label"><span class="material-icons mini-icon">done_all</span> Completed On:</span>
             <strong class="spec-value">{{ selectedLog.completeDate | date:'dd-MM-yyyy' }} {{ selectedLog.completeTime }}</strong>
-          </div>          
+          </div>
+        </div>
+
+        <!-- ================= VERIFY & CONFIRM MISSION: ACTUAL SPRAYED ACREAGE ADJUSTMENT ================= -->
+        <div class="verify-adjust-section" *ngIf="activeDialogMode === 'CONFIRM_MISSION'">
+          <div class="adjust-header">
+            <span class="material-icons adjust-icon">tune</span>
+            <div>
+              <h4>Actual Field Spraying Adjustment (1 Acre = 1 Tank)</h4>
+              <p>Booked land size: <strong>{{ selectedLog.cropSize }} Acres</strong>. Enter actual sprayed acres if field spray coverage differed.</p>
+            </div>
+          </div>
+
+          <div class="adjust-grid">
+            <div class="field-item">
+              <label for="actualAcresInput">
+                <span class="material-icons form-icon">straighten</span>
+                <strong>Actual Sprayed Area (Acres):</strong> <span class="req">*</span>
+              </label>
+              <input 
+                id="actualAcresInput"
+                type="number" 
+                step="0.5" 
+                min="0.5" 
+                max="200"
+                [(ngModel)]="actualSprayedAcres" 
+                (input)="onActualAcresChange()"
+                class="text-input num-field">
+              <small class="hint-text">1 Acre = 1 Drone Tank payload load.</small>
+            </div>
+
+            <div class="field-item">
+              <label>
+                <span class="material-icons form-icon">opacity</span>
+                <strong>Calculated Tanks:</strong>
+              </label>
+              <input 
+                type="text" 
+                [value]="actualSprayedAcres + ' Tanks'" 
+                readonly 
+                class="text-input readonly-mode">
+            </div>
+          </div>
+
+          <div class="recomputed-cost-strip">
+            <div class="cost-cell">
+              <span class="lbl"><span class="material-icons mini-icon">payments</span> Applied Rate</span>
+              <span class="val">₹{{ selectedLog.price }} / tank</span>
+            </div>
+            <div class="cost-cell">
+              <span class="lbl"><span class="material-icons mini-icon">calculate</span> Recomputed Total</span>
+              <span class="val highlight">₹{{ recomputedAmount | number:'1.2-2' }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Financial Summary Banner -->
-        <div class="financial-summary-grid">
+        <div class="financial-summary-grid" *ngIf="activeDialogMode !== 'CONFIRM_MISSION'">
           <div class="fin-box total">
-            <span class="fin-lbl"><span class="material-icons mini-icon">receipt</span> Total Amount</span>
-            <strong class="fin-val">₹{{ selectedLog.amount }}</strong>
+            <span class="fin-lbl"><span class="material-icons mini-icon">receipt</span> Total Billing</span>
+            <strong class="fin-val">₹{{ selectedLog.amount | number:'1.2-2' }}</strong>
           </div>
           <div class="fin-box paid">
-            <span class="fin-lbl"><span class="material-icons mini-icon">verified</span> Paid Amount</span>
-            <strong class="fin-val">₹{{ getPaidAmountForLog(selectedLog) }}</strong>
+            <span class="fin-lbl"><span class="material-icons mini-icon">verified</span> Paid</span>
+            <strong class="fin-val">₹{{ getPaidAmountForLog(selectedLog) | number:'1.2-2' }}</strong>
           </div>
           <div class="fin-box pending">
-            <span class="fin-lbl"><span class="material-icons mini-icon">pending</span> Pending Balance</span>
-            <strong class="fin-val">₹{{ getPendingAmountForLog(selectedLog) }}</strong>
+            <span class="fin-lbl"><span class="material-icons mini-icon">pending</span> Balance Due</span>
+            <strong class="fin-val">₹{{ getPendingAmountForLog(selectedLog) | number:'1.2-2' }}</strong>
           </div>
         </div>
 
-        <!-- BEAUTIFIED PAYMENT NOTES / AUDIT TRAIL CARD -->
+        <!-- Payment Notes Card -->
         <div class="payment-notes-card" *ngIf="selectedLog.logId && paymentsMap.get(selectedLog.logId)?.paymentNotes">
           <div class="notes-header">
             <div class="notes-header-left">
               <span class="material-icons notes-icon">receipt_long</span>
               <div>
-                <h4>Transaction Ledger & Payment Notes</h4>
+                <h4>Transaction Ledger &amp; Payment Notes</h4>
                 <span class="notes-subtitle">Payment logs, references, and audit history</span>
               </div>
             </div>
@@ -393,7 +480,7 @@
             <strong>Select Payment Mode:</strong> <span class="req">*</span>
           </label>
           <select id="payType" [(ngModel)]="paymentMode" class="dropdown-input">
-            <option value="CASH">💵 Cash</option>
+            <option value="CASH">💵 Cash Handover</option>
             <option value="TRANSFER">📱 UPI / Online Bank Transfer</option>
           </select>
 
@@ -413,7 +500,7 @@
                   (change)="onPaymentRadioChange()">
                 <span class="radio-label">
                   <span class="material-icons radio-icon">check_circle</span>
-                  Fully Paid (₹{{ getPendingAmountForLog(selectedLog) }})
+                  Fully Paid (₹{{ getPendingAmountForLog(selectedLog) | number:'1.2-2' }})
                 </span>
               </label>
 
@@ -469,14 +556,9 @@
               id="refNote" 
               type="text" 
               [(ngModel)]="paymentReferenceNote" 
-              placeholder="e.g. UPI Ref #89283921 / Handed over to Pilot Jagadeesh" 
+              placeholder="e.g. UPI Ref #89283921 / Received on field by Pilot" 
               class="text-input">
           </div>
-        </div>
-
-        <div class="placeholder-notice" *ngIf="activeDialogMode === 'CONFIRM_MISSION'">
-          <span class="material-icons icon-sm">info</span>
-          <em>Confirming will lock and mark this flight mission as completed in the registry.</em>
         </div>
       </div>
 
@@ -491,9 +573,10 @@
           *ngIf="activeDialogMode === 'CONFIRM_MISSION'" 
           type="button" 
           class="btn-dialog-confirm" 
+          [disabled]="actualSprayedAcres <= 0"
           (click)="executeConfirmAction()">
           <span class="material-icons icon-sm">task_alt</span>
-          <span>Spraying Completed</span>
+          <span>Confirm &amp; Complete Mission</span>
         </button>
 
         <button 
@@ -503,7 +586,7 @@
           [disabled]="isPaymentSubmitDisabled"
           (click)="executePaymentReceived()">
           <span class="material-icons icon-sm">check</span>
-          <span>Confirm & Record Payment</span>
+          <span>Confirm &amp; Record Payment</span>
         </button>
       </div>
 
