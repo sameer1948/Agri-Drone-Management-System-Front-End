@@ -1,18 +1,26 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { LogEntry } from '../../models/log.model';
 import { Payment, PaymentStatus } from '../../models/payment.model';
 import { LogService } from '../../services/log.service';
 import { PaymentService } from '../../services/payment.service';
 import { BookingService } from '../../services/booking.service';
+import { CropService } from '../../services/crop.service';
+import { VillageService } from '../../services/village.service';
+import { DroneService } from '../../services/drone.service';
+import { RateService } from '../../services/rate.service';
+import { Crop } from '../../models/crop.model';
+import { Village } from '../../models/village.model';
+import { Drone } from '../../models/drone.model';
+import { Rate } from '../../models/rate.model';
 
 type DialogMode = 'CONFIRM_MISSION' | 'RECEIVE_PAYMENT' | 'VIEW_DETAILS' | null;
 
 @Component({
   selector: 'app-logs',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss']
 })
@@ -21,6 +29,11 @@ export class LogsComponent implements OnInit {
   private logApi = inject(LogService);
   private paymentApi = inject(PaymentService);
   private bookingApi = inject(BookingService);
+  private cropApi = inject(CropService);
+  private villageApi = inject(VillageService);
+  private droneApi = inject(DroneService);
+  private rateApi = inject(RateService);
+  private fb = inject(FormBuilder);
 
   allLogs: LogEntry[] = [];
   filteredLogs: LogEntry[] = [];
@@ -30,7 +43,12 @@ export class LogsComponent implements OnInit {
   // Payments mapping (logId -> Payment)
   paymentsMap: Map<number, Payment> = new Map();
 
-  // Filter criteria
+  // Master Lists for Dropdowns
+  cropsList: Crop[] = [];
+  villagesList: Village[] = [];
+  availableDrones: Drone[] = [];
+  availableRates: Rate[] = [];
+
   searchTerm = '';
   selectedStatusFilter: 'ALL' | 'PAID' | 'PENDING' = 'ALL';
 
@@ -51,13 +69,16 @@ export class LogsComponent implements OnInit {
   pageSizeOptions = [5, 10, 20, 50];
   totalPages = 0;
 
-  // Dialog State
+  // Dialog & In-Place Edit States
   isDialogOpen = false;
   activeDialogMode: DialogMode = null;
   selectedLog: LogEntry | null = null;
   selectedPayment: Payment | null = null;
+  isEditMode = false;
+  editLogForm!: FormGroup;
 
-  // Actual Sprayed Acres Adjustment Fields (1 Acre = 1 Tank)
+  // Actual Sprayed Acres & Dynamic Pricing Fields
+  selectedPrice: number = 250;
   actualSprayedAcres: number = 0;
   recomputedAmount: number = 0;
 
@@ -73,7 +94,43 @@ export class LogsComponent implements OnInit {
   private toastTimer: any;
 
   ngOnInit(): void {
+    this.initEditForm();
+    this.loadDatabaseMasterData();
     this.fetchLogs();
+  }
+
+  private initEditForm(): void {
+    this.editLogForm = this.fb.group({
+      cropOwnerName: ['', [Validators.required, Validators.minLength(3)]],
+      cropOwnerPhone: ['', [Validators.required, Validators.pattern('^[6-9][0-9]{9}$')]],
+      cropName: ['', Validators.required],
+      cropVillage: ['', Validators.required],
+      droneId: ['', Validators.required],
+      cropSize: [null, [Validators.required, Validators.min(0.5)]],
+      price: [250, [Validators.required, Validators.min(1)]]
+    });
+  }
+
+  private loadDatabaseMasterData(): void {
+    this.cropApi.getCrops().subscribe({
+      next: (crops) => (this.cropsList = crops || []),
+      error: () => console.warn('Could not load crops')
+    });
+
+    this.villageApi.getVillages().subscribe({
+      next: (villages) => (this.villagesList = villages || []),
+      error: () => console.warn('Could not load villages')
+    });
+
+    this.droneApi.getDrones().subscribe({
+      next: (drones) => (this.availableDrones = (drones || []).filter(d => d.droneStatus === 'ACTIVE')),
+      error: () => console.warn('Could not load drones')
+    });
+
+    this.rateApi.getRates().subscribe({
+      next: (rates) => (this.availableRates = rates || []),
+      error: () => console.warn('Could not load tariff rates')
+    });
   }
 
   fetchLogs(): void {
@@ -260,16 +317,108 @@ export class LogsComponent implements OnInit {
     this.selectedLog = log;
     this.selectedPayment = this.getPaymentForLog(log.logId) || null;
     this.activeDialogMode = 'VIEW_DETAILS';
+    this.isEditMode = false;
     this.isDialogOpen = true;
   }
 
-  openConfirmDialog(log: LogEntry, event?: Event): void {
+  enableEditMode(): void {
+    if (!this.selectedLog) return;
+    this.isEditMode = true;
+    this.editLogForm.patchValue({
+      cropOwnerName: this.selectedLog.cropOwnerName,
+      cropOwnerPhone: this.selectedLog.cropOwnerPhone,
+      cropName: this.selectedLog.cropName,
+      cropVillage: this.selectedLog.cropVillage,
+      droneId: this.selectedLog.droneId,
+      cropSize: this.selectedLog.cropSize,
+      price: this.selectedLog.price || 250
+    });
+  }
+
+  disableEditMode(): void {
+    this.isEditMode = false;
+  }
+
+  saveInPlaceEdit(): void {
+    if (this.editLogForm.invalid || !this.selectedLog?.logId) {
+      this.editLogForm.markAllAsTouched();
+      return;
+    }
+
+    const val = this.editLogForm.value;
+    const newAcres = Number(val.cropSize);
+    const newPrice = Number(val.price);
+    const newTotal = Number((newAcres * newPrice).toFixed(2));
+
+    const updatedLog: LogEntry = {
+      ...this.selectedLog,
+      cropOwnerName: val.cropOwnerName.trim(),
+      cropOwnerPhone: val.cropOwnerPhone.trim(),
+      cropName: val.cropName,
+      cropVillage: val.cropVillage,
+      droneId: val.droneId,
+      cropSize: newAcres,
+      tankUsage: newAcres, // Strictly 1:1
+      price: newPrice,     
+      amount: newTotal
+    };
+
+    // 1. Update Log in backend
+    this.logApi.updateLog(this.selectedLog.logId, updatedLog).subscribe({
+      next: () => {
+        // 2. Synchronize original booking in backend
+        if (this.selectedLog?.bookingId) {
+          const syncNote = `Record parameters updated via Mission Log #${this.selectedLog.logId}`;
+          this.bookingApi.updateActualSprayedArea(this.selectedLog.bookingId, newAcres, syncNote).subscribe({
+            next: () => console.log(`Booking #${this.selectedLog!.bookingId} synchronized.`),
+            error: (err) => console.warn(`Could not sync booking:`, err)
+          });
+        }
+
+        // Update ALL local state objects immediately
+        this.selectedLog = { ...updatedLog };
+        this.selectedPrice = newPrice;
+        this.actualSprayedAcres = newAcres;
+        this.recomputedAmount = newTotal;
+
+        // Update in-memory lists so clicking other buttons reads the fresh 350
+        const idx = this.allLogs.findIndex(l => l.logId === updatedLog.logId);
+        if (idx !== -1) this.allLogs[idx] = { ...updatedLog };
+        const pIdx = this.pagedLogs.findIndex(l => l.logId === updatedLog.logId);
+        if (pIdx !== -1) this.pagedLogs[pIdx] = { ...updatedLog };
+
+        this.isEditMode = false;
+        this.computeKpis();
+        this.showToast(`✅ Log #${updatedLog.logId} updated: Rate ₹${newPrice}/tank & Area ${newAcres} Ac!`, 'success');
+      },
+      error: () => {
+        this.showToast('Failed to update mission parameters.', 'error');
+      }
+    });
+  }
+
+openConfirmDialog(log: LogEntry, event?: Event): void {
     if (event) event.stopPropagation();
-    this.selectedLog = log;
-    // Default actual sprayed acres to current booked crop size
-    this.actualSprayedAcres = Number(log.cropSize);
+
+    // Find the freshest state from in-memory allLogs (in case it was just edited)
+    const freshLog = this.allLogs.find(l => l.logId === log.logId) || log;
+    this.selectedLog = { ...freshLog };
+
+    // Set the actual sprayed acres from the log
+    this.actualSprayedAcres = Number(freshLog.cropSize) || 0;
+
+    // Strictly prioritize freshLog.price (e.g., 350) over any default
+    if (freshLog.price !== undefined && freshLog.price !== null && Number(freshLog.price) > 0) {
+      this.selectedPrice = Number(freshLog.price);
+    } else if (this.availableRates && this.availableRates.length > 0) {
+      this.selectedPrice = Number(this.availableRates[0].price);
+    } else {
+      this.selectedPrice = 250;
+    }
+
     this.recomputeConfirmCost();
     this.activeDialogMode = 'CONFIRM_MISSION';
+    this.isEditMode = false;
     this.isDialogOpen = true;
   }
 
@@ -279,7 +428,11 @@ export class LogsComponent implements OnInit {
 
   private recomputeConfirmCost(): void {
     if (!this.selectedLog) return;
-    const price = Number(this.selectedLog.price) || 250;
+    // Use selectedPrice first; if missing, use selectedLog.price
+    const price = Number(this.selectedPrice) > 0 
+      ? Number(this.selectedPrice) 
+      : (Number(this.selectedLog.price) > 0 ? Number(this.selectedLog.price) : 250);
+
     const acres = Number(this.actualSprayedAcres) || 0;
     // 1 Acre = 1 Tank calculation
     this.recomputedAmount = Number((acres * price).toFixed(2));
@@ -298,6 +451,7 @@ export class LogsComponent implements OnInit {
     this.paymentRadioOption = 'FULL';
     this.enteredAmount = maxPending;
     this.amountError = '';
+    this.isEditMode = false;
 
     this.isDialogOpen = true;
   }
@@ -307,6 +461,7 @@ export class LogsComponent implements OnInit {
     this.activeDialogMode = null;
     this.selectedLog = null;
     this.selectedPayment = null;
+    this.isEditMode = false;
     this.amountError = '';
   }
 
@@ -371,9 +526,14 @@ export class LogsComponent implements OnInit {
 
     const logRef = this.selectedLog.logId;
     const bookingRef = this.selectedLog.bookingId;
-    const originalBookedAcres = Number(this.selectedLog.cropSize);
-    const finalAcres = Number(this.actualSprayedAcres) > 0 ? Number(this.actualSprayedAcres) : originalBookedAcres;
-    const finalAmount = this.recomputedAmount > 0 ? this.recomputedAmount : this.selectedLog.amount;
+    const finalAcres = Number(this.actualSprayedAcres) > 0 ? Number(this.actualSprayedAcres) : Number(this.selectedLog.cropSize);
+    
+    //  Lock the exact price user configured (e.g. 350)
+    const appliedPrice = Number(this.selectedPrice) > 0 
+      ? Number(this.selectedPrice) 
+      : (Number(this.selectedLog.price) > 0 ? Number(this.selectedLog.price) : 250);
+
+    const finalAmount = Number((finalAcres * appliedPrice).toFixed(2));
 
     const now = new Date();
     const compDate = now.toISOString().split('T')[0];
@@ -384,7 +544,8 @@ export class LogsComponent implements OnInit {
       ...this.selectedLog,
       cropSize: finalAcres,
       tankUsage: finalAcres, // Strictly 1:1
-      amount: finalAmount,
+      price: appliedPrice,   
+      amount: finalAmount,   
       completeDate: compDate,
       completeTime: compTime,
       activityStatus: 'COMPLETED',
@@ -400,9 +561,7 @@ export class LogsComponent implements OnInit {
       pendingAmount: Number(finalAmount)
     };
 
-    const completionNote = originalBookedAcres !== finalAcres 
-      ? `Sprayed area revised from ${originalBookedAcres} ac to ${finalAcres} ac on completion.`
-      : '';
+    const completionNote = `Sprayed area: ${finalAcres} ac @ ₹${appliedPrice}/tank.`;
 
     // Step A: Update the Mission Log
     this.logApi.updateLog(logRef, updatedLogEntry).subscribe({
@@ -410,8 +569,8 @@ export class LogsComponent implements OnInit {
         // Step B: Synchronize the original Booking record with actual sprayed acres
         if (bookingRef) {
           this.bookingApi.updateActualSprayedArea(bookingRef, finalAcres, completionNote).subscribe({
-            next: () => console.log(`Booking #${bookingRef} synchronized to ${finalAcres} Acres.`),
-            error: (err) => console.warn(`Could not sync booking #${bookingRef}:`, err)
+            next: () => console.log(`Booking #${bookingRef} synchronized.`),
+            error: (err) => console.warn(`Could not sync booking:`, err)
           });
         }
 
@@ -420,7 +579,7 @@ export class LogsComponent implements OnInit {
           next: (p) => {
             if (p?.logId) this.paymentsMap.set(p.logId, p);
             this.fetchLogs();
-            this.showToast(`✅ Mission #${logRef} & Booking #${bookingRef} finalized: ${finalAcres} Acres sprayed (₹${finalAmount})!`, 'success');
+            this.showToast(`✅ Mission #${logRef} confirmed with ${finalAcres} Acres @ ₹${appliedPrice}/tank (Total: ₹${finalAmount})!`, 'success');
           },
           error: () => this.fetchLogs()
         });
@@ -503,7 +662,7 @@ export class LogsComponent implements OnInit {
   }
 
   // --- Dynamic WhatsApp Notification ---
-  sendPaymentReminder(log: LogEntry, event?: Event): void {
+  sendSmartNotification(log: LogEntry, event?: Event): void {
     if (event) event.stopPropagation();
 
     if (!log.cropOwnerPhone) {
@@ -516,35 +675,51 @@ export class LogsComponent implements OnInit {
 
     const pending = this.getPendingAmountForLog(log);
     const paid = this.getPaidAmountForLog(log);
+    const isSettled = this.isFullySettled(log);
+    const isCompleted = log.activityStatus === 'COMPLETED';
+
+    let header = '';
+    let footerMessage = '';
+
+    if (isCompleted && isSettled) {
+      header = '*Sri Jagadeeswara AGRI Drone Spraying - Service Completed & Paid* ';
+      footerMessage = 'Thank you! Your spraying service is completely finished and fully settled.';
+    } else if (isCompleted && !isSettled) {
+      header = '*Sri Jagadeeswara AGRI Drone Spraying - Mission Completed (Payment Pending)* ';
+      footerMessage = `Your field has been sprayed successfully. Please settle the pending balance of *₹${pending}* via Cash or UPI at your earliest convenience.`;
+    } else {
+      header = '*Sri Jagadeeswara AGRI Drone Spraying - Pilot & Mission Dispatched* ';
+      footerMessage = 'Our pilot and autonomous drone unit are prepared for your scheduled mission. Please ensure field water availability.';
+    }
 
     const messageLines = [
-      '*Sri Jagadeeswara AGRI Drone Spraying - Mission Ledger Summary* ',
+      header,
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      `Dear *${log.cropOwnerName}*, here is your verified drone spraying summary:`,
+      `Dear *${log.cropOwnerName}*, details of your flight log:`,
       '',
-      `*Mission Ref:* #${log.logId} (Booking #${log.bookingId})`,
-      `*Drone Hardware:* ${log.droneId}`,
+      `*Log ID:* #${log.logId} (Booking #${log.bookingId})`,
+      `*Drone Unit:* ${log.droneId}`,
       `*Scheduled Slot:* ${log.createDate} at ${log.createTime}`,
       log.confirmedDate ? `*Confirmed Date:* ${log.confirmedDate} (${log.confirmedTime})` : '',
       log.completeDate ? `*Completed Date:* ${log.completeDate} (${log.completeTime})` : '',
       `*Crop & Plot:* ${log.cropName} (${log.cropVillage})`,
-      `*Actual Sprayed Area:* ${log.cropSize} Acres (${log.tankUsage} Tanks @ 1 Acre = 1 Tank)`,
+      `*Sprayed Land Size:* ${log.cropSize} Acres (${log.tankUsage} Tanks @ 1 Acre = 1 Tank)`,
       `*Tariff Rate:* ₹${log.price}/tank`,
-      `*Total Billing:* ₹${log.amount}`,
-      `*Amount Paid:* ₹${paid}`,
-      `*Pending Balance Due:* *₹${pending}*`,
+      `*Total Bill:* ₹${log.amount}`,
+      isCompleted ? `*Amount Paid:* ₹${paid}` : '',
+      isCompleted ? `*Pending Balance:* *₹${pending}*` : '',
+      `*Activity Status:* *${log.activityStatus}*`,
+      `*Payment Status:* *${isSettled ? 'PAID' : 'PENDING'}*`,
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      pending > 0 
-        ? 'Please settle the pending balance via Cash or UPI at your earliest convenience.' 
-        : 'Thank you! Your payment is fully settled.',
+      footerMessage,
       '',
-      '*Official Pilot Contact:* +91 9642343838, +91 9032343838',
+      '*Official Pilot Hotline:* +91 9642343838, +91 9032343838',
       '_*Sri Jagadeeswara AGRI Drone Spraying*_'
     ].filter(line => line !== null && line !== undefined && line.trim() !== '');
 
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageLines.join('\n'))}`;
     window.open(url, '_blank', 'noopener,noreferrer');
-    this.showToast(`WhatsApp summary opened for ${log.cropOwnerName}`, 'success');
+    this.showToast(`WhatsApp notice opened for ${log.cropOwnerName}`, 'success');
   }
 
   showToast(message: string, type: 'success' | 'error' = 'success'): void {
